@@ -116,7 +116,7 @@ export function LandingPage() {
 		</Link>
 	) : (
 		<Link to="/login" className="btn btn-neutral btn-lg gap-2">
-			用 Moodle 帳號登入
+			用學校帳號登入
 			<ArrowRightIcon size={18} weight="bold" />
 		</Link>
 	);
