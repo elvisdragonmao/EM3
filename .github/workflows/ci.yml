@@ -70,4 +70,5 @@ jobs:
             echo "::warning::CLOUDFLARE_API_TOKEN is not set; skipping deploy."
             exit 0
           fi
+          npx --yes wrangler@4 d1 migrations apply em3 --remote
           npx --yes wrangler@4 deploy

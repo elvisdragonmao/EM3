@@ -6,7 +6,7 @@
 	"scripts": {
 		"build": "tsc -b && vite build",
 		"db:migrate": "wrangler d1 migrations apply em3 --local",
-		"deploy": "pnpm build && npx --yes wrangler@4 deploy",
+		"deploy": "pnpm build && wrangler d1 migrations apply em3 --remote && wrangler deploy",
 		"dev": "vite",
 		"dev:server": "mkdir -p dist && wrangler dev --port 8787",
 		"format": "prettier --write .",
