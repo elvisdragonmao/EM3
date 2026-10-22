@@ -23,6 +23,8 @@ export default defineConfig({
 	resolve: {
 		alias: { "@": new URL("./src", import.meta.url).pathname }
 	},
+	// The server version's API runs in `pnpm dev:server` (wrangler dev).
+	server: { proxy: { "/api": "http://localhost:8787" } },
 	build: {
 		target: "es2022",
 		rollupOptions: {

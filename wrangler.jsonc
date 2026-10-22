@@ -2,10 +2,18 @@
 	"name": "em3",
 	"account_id": "247e3a0e0c4b1d5d8ca405dfc0ffd2d0",
 	"compatibility_date": "2026-10-01",
+	// The static app plus the server version's /api (docs/server.md).
+	"main": "worker/index.ts",
 	"assets": {
 		"directory": "./dist",
-		"not_found_handling": "single-page-application"
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*"]
 	},
+	"d1_databases": [{ "binding": "DB", "database_name": "em3", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }],
+	// Reminders and scheduled grade releases.
+	"triggers": { "crons": ["*/15 * * * *"] },
+	"observability": { "enabled": true },
 	"routes": [{ "pattern": "e3.emtech.cc", "custom_domain": true }],
 	"workers_dev": false,
 	"previews": {}
