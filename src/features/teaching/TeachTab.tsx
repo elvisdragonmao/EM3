@@ -1,5 +1,6 @@
 import { assignRules, useAssignments } from "@/features/assignments/api";
 import type { ParsedCourse } from "@/features/courses/parse";
+import { ServerOnly } from "@/features/server/ServerOnly";
 import { tc } from "@/i18n/common";
 import { callMany } from "@/lib/moodle/client";
 import { e3Link } from "@/lib/moodle/files";
@@ -22,7 +23,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { AllocationSection } from "./AllocationDialog";
 import type { Participant } from "./api";
+import { t as tk } from "./collab-messages";
 import { t } from "./messages";
 
 export interface Progress {
@@ -165,6 +168,13 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 						})}
 					</ul>
 				)}
+			</section>
+
+			<section>
+				<h2 className="mb-3 text-sm font-semibold text-base-content/70">{tk("allocHeading")}</h2>
+				<ServerOnly compact>
+					<AllocationSection courseId={course.id} />
+				</ServerOnly>
 			</section>
 
 			<section>

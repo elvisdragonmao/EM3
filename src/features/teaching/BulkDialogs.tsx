@@ -8,6 +8,8 @@ import { CheckCircleIcon, CloudArrowUpIcon, CopyIcon, WarningIcon } from "@phosp
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { displayName, feedbackComment, feedbackFiles, fetchAllStatuses, isAuditor, type Participant, submittedFiles, useGrantExtension, useSaveGrade, useStudentIds } from "./api";
+import { invalidateCollab, saveDrafts } from "./collab-api";
+import { t as tk } from "./collab-messages";
 import { buildSubmissionZip, type CsvGrade, gradesCsv, gradesFromCsv, matchFeedbackFiles, readCsv, sheetText } from "./bundle";
 import { t } from "./grading-messages";
 
@@ -19,6 +21,8 @@ interface Props {
 	assignment: Assignment;
 	participants: Participant[];
 	grades: Record<number, { grade: string }>;
+	/** Server version: a release is scheduled, so imported grades are held on the EM3 server. */
+	holding?: boolean;
 }
 
 function Shell({ open, onClose, title, children, wide = false }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
@@ -46,7 +50,7 @@ function Shell({ open, onClose, title, children, wide = false }: { open: boolean
 
 const gradeText = (g?: { grade: string }) => (g && Number(g.grade) >= 0 ? String(Number(g.grade)) : "");
 
-export function BulkDialogs({ kind, onClose, assignment, participants, grades }: Props) {
+export function BulkDialogs({ kind, onClose, assignment, participants, grades, holding = false }: Props) {
 	const sids = useStudentIds(assignment.course).data ?? {};
 	return (
 		<>
@@ -54,7 +58,7 @@ export function BulkDialogs({ kind, onClose, assignment, participants, grades }:
 				<DownloadAll assignment={assignment} participants={participants} grades={grades} sids={sids} onClose={onClose} />
 			</Shell>
 			<Shell open={kind === "csv"} onClose={onClose} title={t("dlgCsv")} wide>
-				<CsvImport assignment={assignment} participants={participants} grades={grades} sids={sids} onClose={onClose} />
+				<CsvImport assignment={assignment} participants={participants} grades={grades} sids={sids} onClose={onClose} holding={holding} />
 			</Shell>
 			<Shell open={kind === "files"} onClose={onClose} title={t("dlgFiles")} wide>
 				<FilesUpload assignment={assignment} participants={participants} grades={grades} sids={sids} onClose={onClose} />
@@ -172,7 +176,7 @@ interface PlanRow {
 	note?: string;
 }
 
-function CsvImport({ assignment, participants, grades, sids, onClose }: Sub) {
+function CsvImport({ assignment, participants, grades, sids, onClose, holding }: Sub & { holding: boolean }) {
 	const [rows, setRows] = useState<CsvGrade[] | null>(null);
 	const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
 	const [result, setResult] = useState<Outcome>(null);
@@ -214,6 +218,18 @@ function CsvImport({ assignment, participants, grades, sids, onClose }: Sub) {
 				plan.ok.map(r => r.p.id)
 			);
 			const commentsOn = assignment.configs.some(c => c.subtype === "assignfeedback" && c.plugin === "comments" && c.name === "enabled" && c.value === "1");
+			const commentOf = (r: PlanRow) => (r.comment ? `<p>${escapeHtml(r.comment).replace(/\n/g, "<br>")}</p>` : feedbackComment(statuses[r.p.id]));
+			if (holding) {
+				// Same grades and comments, held on the EM3 server until the scheduled release.
+				await saveDrafts(
+					assignment.course,
+					assignment.id,
+					plan.ok.map(r => ({ student: r.p.id, grade: r.next, feedback: commentsOn ? commentOf(r) : null }))
+				);
+				setResult({ ok: true, text: tk("heldN", plan.ok.length) });
+				void invalidateCollab(qc, assignment.id);
+				return;
+			}
 			for (let i = 0; i < plan.ok.length; i += 20) {
 				const chunk = plan.ok.slice(i, i + 20);
 				await call<null>("mod_assign_save_grades", {
@@ -225,9 +241,7 @@ function CsvImport({ assignment, participants, grades, sids, onClose }: Sub) {
 						attemptnumber: -1,
 						addattempt: false,
 						workflowstate: "",
-						plugindata: commentsOn
-							? { assignfeedbackcomments_editor: { text: r.comment ? `<p>${escapeHtml(r.comment).replace(/\n/g, "<br>")}</p>` : feedbackComment(statuses[r.p.id]), format: 1 } }
-							: {}
+						plugindata: commentsOn ? { assignfeedbackcomments_editor: { text: commentOf(r), format: 1 } } : {}
 					})) as never
 				});
 				setRunning({ done: Math.min(plan.ok.length, i + chunk.length), total: plan.ok.length });
@@ -253,6 +267,7 @@ function CsvImport({ assignment, participants, grades, sids, onClose }: Sub) {
 			) : (
 				<div className="space-y-4 text-sm">
 					<p className="text-base-content/70">{t("csvIntro", t("downloadAll"), cols.sid, cols.grade, cols.comment, max)}</p>
+					{holding && <p className="rounded-lg bg-info/10 p-3 text-xs">{tk("csvHeld")}</p>}
 					<input
 						type="file"
 						accept=".csv,text/csv"
@@ -313,7 +328,7 @@ function CsvImport({ assignment, participants, grades, sids, onClose }: Sub) {
 										{tc("cancel")}
 									</button>
 									<button type="button" className="btn btn-primary" disabled={!plan.ok.length} onClick={() => void apply()}>
-										{t("writeN", plan.ok.length)}
+										{holding ? tk("holdN", plan.ok.length) : t("writeN", plan.ok.length)}
 									</button>
 								</div>
 							)}

@@ -1,9 +1,13 @@
 import { useAssignments } from "@/features/assignments/api";
+import { useSession } from "@/features/auth/session";
 import { FileIcon } from "@/features/course/FileIcon";
 import { openFile } from "@/features/course/FilePreview";
 import { useCourseIndex } from "@/features/courses/api";
+import { useServerReady } from "@/features/server/store";
+import { call } from "@/lib/moodle/client";
 import { cleanHtml, e3Link, fileExt, humanSize, linkify } from "@/lib/moodle/files";
-import type { InlineFile } from "@/lib/moodle/types";
+import type { InlineFile, SubmissionStatus } from "@/lib/moodle/types";
+import { ServerError } from "@/lib/server/api";
 import { fullDateTime } from "@/lib/time/relative";
 import { MarkdownEditor, markdownToHtml } from "@/shared/editor/MarkdownEditor";
 import { MOD_LABEL, useHotkeys } from "@/shared/keyboard/hotkeys";
@@ -22,9 +26,13 @@ import {
 	FileCsvIcon,
 	HourglassIcon,
 	MagnifyingGlassIcon,
+	ClockCountdownIcon,
+	PencilSimpleLineIcon,
 	TrashIcon,
-	UploadSimpleIcon
+	UploadSimpleIcon,
+	UsersThreeIcon
 } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -43,8 +51,13 @@ import {
 	useStudentIds,
 	useStudentStatus
 } from "./api";
+import { AllocationDialog } from "./AllocationDialog";
 import { BulkDialogs, type BulkKind } from "./BulkDialogs";
+import { deleteDraft, type Draft, fetchDraft, invalidateCollab, isHolding, type Lock, saveDraft, useAllocations, useAssignCollab, useGradingLock, useMe } from "./collab-api";
+import { t as tk } from "./collab-messages";
+import { useConfirm } from "./ConfirmDialog";
 import { t } from "./grading-messages";
+import { ReleasePanel } from "./ReleasePanel";
 
 type Filter = "all" | "todo" | "graded" | "missing";
 const FILTERS: Filter[] = ["todo", "graded", "missing", "all"];
@@ -67,25 +80,47 @@ export function GradingPage() {
 	const [bulk, setBulk] = useState<BulkKind | null>(null);
 	useDocumentTitle(a ? t("docTitle", a.name) : undefined);
 
+	// Server version only (useServerReady): allocations, locks and scheduled release.
+	const ready = useServerReady();
+	const me = useMe();
+	const alloc = useAllocations(Number(courseId));
+	const collab = useAssignCollab(Number(courseId), a?.id);
+	const [allocOpen, setAllocOpen] = useState(false);
+	const [mineOnly, setMineOnly] = useState<boolean | null>(null);
+	const allocMap = ready ? (alloc.data?.allocations ?? {}) : {};
+	const hasAlloc = Object.keys(allocMap).length > 0;
+	const inAlloc = hasAlloc && me !== undefined && Object.values(allocMap).includes(me);
+	// On by default when there is a split and I'm in it.
+	const mine = hasAlloc && (mineOnly ?? inAlloc);
+	const graderNames = useMemo(() => new Map((alloc.data?.graders ?? []).map(g => [g.id, displayName(g.name)])), [alloc.data]);
+	const release = ready ? collab.data?.release : undefined;
+	const holding = isHolding(release);
+	const drafts = useMemo(() => new Map<number, Draft>(ready ? (collab.data?.drafts ?? []).map(d => [d.student, d]) : []), [ready, collab.data]);
+	const othersLocks = useMemo(() => new Map<number, Lock>(ready ? (collab.data?.locks ?? []).filter(l => l.grader !== me).map(l => [l.student, l]) : []), [ready, collab.data, me]);
+
 	const isGraded = (p: Participant) => {
+		if (holding && drafts.has(p.id)) return true;
 		const g = grades.data?.[p.id];
 		return !!g && Number(g.grade) >= 0;
 	};
 	const people = useMemo(() => {
 		// Suspended enrolments stay visible when they handed something in; E3 hides them.
-		const list = (participants.data ?? []).filter(p => !p.suspended || p.submitted);
+		const list = (participants.data ?? []).filter(p => (!p.suspended || p.submitted) && (!mine || allocMap[p.id] === me));
 		const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
 		return list
 			.filter(p => terms.every(term => `${displayName(p.fullname)} ${p.email ?? ""} ${sids[p.id] ?? ""}`.toLowerCase().includes(term)))
 			.filter(p => (filter === "all" ? true : filter === "missing" ? !p.submitted : filter === "graded" ? isGraded(p) : p.submitted && !isGraded(p)))
 			.sort((x, y) => displayName(x.fullname).localeCompare(displayName(y.fullname), "zh-Hant"));
-	}, [participants.data, grades.data, filter, q, sids]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [participants.data, grades.data, filter, q, sids, mine, allocMap, me, holding, drafts]);
 
 	const all = participants.data?.filter(p => !p.suspended || p.submitted) ?? [];
+	// The stats follow "my group only".
+	const scope = mine ? all.filter(p => allocMap[p.id] === me) : all;
 	const counts = {
-		submitted: all.filter(p => p.submitted).length,
-		graded: all.filter(isGraded).length,
-		todo: all.filter(p => p.submitted && !isGraded(p)).length
+		submitted: scope.filter(p => p.submitted).length,
+		graded: scope.filter(isGraded).length,
+		todo: scope.filter(p => p.submitted && !isGraded(p)).length
 	};
 	const current = people.find(p => p.id === student) ?? (student ? all.find(p => p.id === student) : undefined);
 	const pick = (id: number | undefined) => navigate({ to: ".", search: { student: id }, replace: true });
@@ -139,7 +174,7 @@ export function GradingPage() {
 						{t("importCsv")}
 					</button>
 					{feedbackPlugins(a).files && (
-						<button type="button" className="btn btn-sm" onClick={() => setBulk("files")}>
+						<button type="button" className="btn btn-sm" disabled={holding} title={holding ? tk("filesHeldTitle") : undefined} onClick={() => setBulk("files")}>
 							<UploadSimpleIcon size={16} />
 							{t("uploadFeedback")}
 						</button>
@@ -160,8 +195,8 @@ export function GradingPage() {
 			</header>
 
 			<div className="mb-5 grid grid-cols-3 gap-3 sm:max-w-xl">
-				<Stat label={t("submitted")} value={counts.submitted} total={all.length} />
-				<Stat label={t("graded")} value={counts.graded} total={all.length} />
+				<Stat label={t("submitted")} value={counts.submitted} total={scope.length} />
+				<Stat label={t("graded")} value={counts.graded} total={scope.length} />
 				<Stat label={t("todo")} value={counts.todo} tone={counts.todo ? "text-warning" : undefined} />
 			</div>
 
@@ -170,6 +205,8 @@ export function GradingPage() {
 					{t("rubricWarning")}
 				</div>
 			)}
+
+			{ready && max > 0 && <ReleasePanel courseId={Number(courseId)} assignId={a.id} data={collab.data} names={new Map(all.map(p => [p.id, displayName(p.fullname)]))} />}
 
 			<div className="grid grid-cols-1 gap-5 lg:grid-cols-[18rem_1fr]">
 				<aside className={`min-w-0 ${current ? "hidden lg:block" : ""}`} aria-label={t("studentsLabel")}>
@@ -185,6 +222,19 @@ export function GradingPage() {
 							</button>
 						))}
 					</fieldset>
+					{ready && (
+						<div className="mb-2 flex flex-wrap items-center gap-1">
+							{hasAlloc && (
+								<button type="button" aria-pressed={mine} onClick={() => setMineOnly(!mine)} className={`btn btn-xs rounded-full ${mine ? "btn-neutral" : "btn-ghost"}`}>
+									<UsersThreeIcon size={13} />
+									{tk("mineOnly")}
+								</button>
+							)}
+							<button type="button" className="btn btn-ghost btn-xs rounded-full text-base-content/65" onClick={() => setAllocOpen(true)}>
+								{tk("editAllocShort")}
+							</button>
+						</div>
+					)}
 					<p role="status" className="sr-only">
 						{participants.isPending ? "" : people.length ? t("matchCount", people.length) : t("noMatch")}
 					</p>
@@ -195,6 +245,9 @@ export function GradingPage() {
 							{people.map(p => {
 								const g = grades.data?.[p.id];
 								const graded = isGraded(p);
+								const draft = drafts.get(p.id);
+								const lock = othersLocks.get(p.id);
+								const grader = hasAlloc && !mine ? graderNames.get(allocMap[p.id]) : undefined;
 								return (
 									<li key={p.id}>
 										<button
@@ -205,7 +258,7 @@ export function GradingPage() {
 											className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm ${current?.id === p.id ? "bg-primary/[0.07]" : "hover:bg-base-content/[0.03]"}`}
 										>
 											<span className={`size-2 shrink-0 rounded-full ${!p.submitted ? "bg-base-content/15" : graded ? "bg-success" : "bg-warning"}`} />
-											{p.submitted && <span className="sr-only">{graded ? t("graded") : t("todo")}</span>}
+											{p.submitted && <span className="sr-only">{holding && drafts.has(p.id) ? tk("heldGraded") : graded ? t("graded") : t("todo")}</span>}
 											<span className="min-w-0 grow">
 												<span className="block truncate">{displayName(p.fullname)}</span>
 												<span className="block truncate text-[0.7rem] text-base-content/65">
@@ -213,9 +266,24 @@ export function GradingPage() {
 													{isAuditor(p) && ` · ${t("auditor")}`}
 													{p.suspended && <span className="text-warning"> · {t("suspended")}</span>}
 													{p.outsideTable && !p.suspended && <span className="text-warning"> · {t("outsideTable")}</span>}
+													{grader && ` · ${tk("graderOf", grader)}`}
 												</span>
+												{lock && (
+													<span className="mt-0.5 flex items-center gap-1 text-[0.7rem] text-info">
+														<PencilSimpleLineIcon size={11} />
+														{tk("isGrading", displayName(lock.graderName))}
+													</span>
+												)}
+												{draft && (
+													<span className="mt-0.5 flex items-center gap-1 text-[0.7rem] text-base-content/65">
+														<ClockCountdownIcon size={11} />
+														{holding ? tk("heldGraded") : tk("draftLeft")}
+													</span>
+												)}
 											</span>
-											{graded ? (
+											{holding && draft ? (
+												<span className="text-xs tabular-nums text-base-content/65">{draft.grade ?? "–"}</span>
+											) : graded ? (
 												<span className="text-xs tabular-nums text-base-content/65">{Number(g!.grade)}</span>
 											) : !p.submitted ? (
 												<span className="text-xs text-base-content/65">{t("missingShort")}</span>
@@ -237,11 +305,26 @@ export function GradingPage() {
 				</aside>
 
 				<section className="min-w-0" aria-label={current ? displayName(current.fullname) : undefined}>
-					{current ? <StudentPanel key={current.id} assignmentId={a.id} p={current} max={max} onDone={() => step(1)} onBack={() => pick(undefined)} /> : <Empty title={t("pickStudent")} />}
+					{current ? (
+						<StudentPanel
+							key={current.id}
+							assignmentId={a.id}
+							p={current}
+							max={max}
+							onDone={() => step(1)}
+							onBack={() => pick(undefined)}
+							holding={holding}
+							draft={ready ? drafts.get(current.id) : undefined}
+							listLock={othersLocks.get(current.id)}
+						/>
+					) : (
+						<Empty title={t("pickStudent")} />
+					)}
 				</section>
 			</div>
 
-			<BulkDialogs kind={bulk} onClose={() => setBulk(null)} assignment={a} participants={all} grades={grades.data ?? {}} />
+			<BulkDialogs kind={bulk} onClose={() => setBulk(null)} assignment={a} participants={all} grades={grades.data ?? {}} holding={holding} />
+			{ready && <AllocationDialog courseId={Number(courseId)} open={allocOpen} onClose={() => setAllocOpen(false)} />}
 		</div>
 	);
 }
@@ -264,8 +347,36 @@ function htmlToMarkdownish(html: string) {
 	return (doc.body.textContent ?? "").trim();
 }
 
-function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: number; p: Participant; max: number; onDone: () => void; onBack: () => void }) {
+const gradeLabel = (g: string | number | null | undefined) => (g !== null && g !== undefined && Number(g) >= 0 ? String(Number(g)) : t("ungraded"));
+
+interface PanelProps {
+	assignmentId: number;
+	p: Participant;
+	max: number;
+	onDone: () => void;
+	onBack: () => void;
+	/** Server version: a release is scheduled, so saving holds the grade on the EM3 server. */
+	holding?: boolean;
+	/** Server version: this student's held grade. */
+	draft?: Draft;
+	/** Server version: someone else's lock on this student, from the polled list. */
+	listLock?: Lock;
+}
+
+function StudentPanel({ assignmentId, p, max, onDone, onBack, holding = false, draft, listLock }: PanelProps) {
 	const { courseId, cmid } = useParams({ from: "/app/courses/$courseId/assign/$cmid/grade" });
+	const qc = useQueryClient();
+	const ready = useServerReady();
+	const me = useMe();
+	const myMoodleId = useSession(s => s.userid);
+	const serverLock = useGradingLock(Number(courseId), assignmentId, p.id);
+	const holder = serverLock && serverLock.grader !== me ? serverLock : listLock;
+	const [ask, confirmDialog] = useConfirm();
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [savedHeld, setSavedHeld] = useState(false);
+	// What the form was loaded from, to notice someone else saving in between.
+	const baseline = useRef<{ time: number; draftAt: number | null; fromDraft: boolean }>({ time: 0, draftAt: null, fromDraft: false });
 	const ids = useMemo(() => [Number(courseId)], [courseId]);
 	const a = useAssignments(ids).data?.find(x => x.cmid === Number(cmid));
 	const status = useStudentStatus(assignmentId, p.id);
@@ -294,14 +405,26 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 
 	useEffect(() => {
 		if (!st || loaded) return;
-		const g = existingGrade !== undefined && Number(existingGrade) >= 0 ? String(Number(existingGrade)) : "";
+		// While a release is held, the held grade is the latest one.
+		const fromDraft = holding && !!draft;
+		const g = fromDraft ? (draft!.grade === null ? "" : String(draft!.grade)) : existingGrade !== undefined && Number(existingGrade) >= 0 ? String(Number(existingGrade)) : "";
 		setGrade(g);
-		setComment(htmlToMarkdownish(feedbackComment(st)));
+		setComment(htmlToMarkdownish(fromDraft ? (draft!.feedback ?? "") : feedbackComment(st)));
 		setKeep(feedbackFiles(st));
 		setVersion(v => v + 1);
 		setLoaded(true);
+		baseline.current = { time: st.feedback?.grade?.timemodified ?? 0, draftAt: draft?.updatedAt ?? null, fromDraft };
 		requestAnimationFrame(() => gradeInput.current?.focus());
-	}, [st, loaded, existingGrade]);
+	}, [st, loaded, existingGrade, holding, draft]);
+
+	/** Re-reads the student from Moodle (read-only) and resets the form to it. */
+	async function reload() {
+		await status.refetch();
+		void invalidateCollab(qc, assignmentId);
+		setLoaded(false);
+		setCommentDirty(false);
+		setAddFiles([]);
+	}
 
 	const gradeNum = grade.trim() === "" ? null : Number(grade);
 	const invalid = gradeNum !== null && (Number.isNaN(gradeNum) || gradeNum < 0 || gradeNum > max);
@@ -310,19 +433,75 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 	const files = submittedFiles(st);
 
 	async function submit(next: boolean) {
-		if (invalid || !a) return;
+		if (invalid || !a || busy) return;
+		setBusy(true);
+		setError(null);
+		setSaved(false);
+		try {
+			if (await write()) {
+				setSaved(true);
+				setCommentDirty(false);
+				setAddFiles([]);
+				if (next) onDone();
+			}
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e));
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	/** Saves to Moodle, or to the EM3 server while a release is held. False when the user backed out. */
+	async function write(): Promise<boolean> {
+		if (holder && (await ask({ title: tk("confirmTitle"), body: tk("confirmLocked", displayName(holder.graderName)), confirm: tk("saveAnyway") })) !== "ok") return false;
+		// Untouched comments go back byte-for-byte so Moodle does not treat them as edited.
+		const untouched = baseline.current.fromDraft ? (draft?.feedback ?? "") : feedbackComment(st);
+		const commentHtml = commentDirty ? (comment.trim() ? markdownToHtml(comment) : "") : untouched;
+		if (holding) {
+			const input = { grade: gradeNum, feedback: plugins.comments ? commentHtml : null };
+			try {
+				const r = await saveDraft(Number(courseId), a!.id, p.id, { ...input, expectedUpdatedAt: baseline.current.draftAt });
+				baseline.current.draftAt = r.draft.updatedAt;
+			} catch (e) {
+				if (!(e instanceof ServerError && e.status === 409)) throw e;
+				const other = await fetchDraft(Number(courseId), a!.id, p.id);
+				const choice = await ask({
+					title: tk("confirmTitle"),
+					body: tk("confirmDraftChanged", displayName(other?.graderName ?? ""), gradeLabel(other?.grade)),
+					confirm: tk("saveAnyway"),
+					alt: tk("loadLatest")
+				});
+				if (choice === "alt") await reload();
+				if (choice !== "ok") return false;
+				baseline.current.draftAt = (await saveDraft(Number(courseId), a!.id, p.id, input)).draft.updatedAt;
+			}
+			void invalidateCollab(qc, a!.id);
+			setSavedHeld(true);
+			return true;
+		}
+		// Someone may have saved this student on E3 (or in EM3) since it was opened.
+		const fresh = await call<SubmissionStatus>("mod_assign_get_submission_status", { assignid: a!.id, userid: p.id });
+		const g = fresh.feedback?.grade;
+		if (g && g.timemodified > baseline.current.time && g.grader !== myMoodleId) {
+			const choice = await ask({ title: tk("confirmTitle"), body: tk("confirmChanged", gradeLabel(existingGrade), gradeLabel(g.grade)), confirm: tk("saveAnyway"), alt: tk("loadLatest") });
+			if (choice === "alt") await reload();
+			if (choice !== "ok") return false;
+		}
 		await save.mutateAsync({
 			userid: p.id,
 			grade: gradeNum,
-			// Untouched comments go back byte-for-byte so Moodle does not treat them as edited.
-			commentHtml: commentDirty ? (comment.trim() ? markdownToHtml(comment) : "") : feedbackComment(st),
+			commentHtml,
 			files: plugins.files ? addFiles : undefined,
 			keepFiles: plugins.files && (addFiles.length || keep.length !== feedbackFiles(st).length) ? keep : undefined
 		});
-		setSaved(true);
-		setCommentDirty(false);
-		setAddFiles([]);
-		if (next) onDone();
+		baseline.current.time = Math.floor(Date.now() / 1000);
+		setSavedHeld(false);
+		// A grade written straight to E3 replaces any unreleased one, so "write now" can't undo it later.
+		if (ready && draft) {
+			await deleteDraft(Number(courseId), a!.id, p.id).catch(() => {});
+			void invalidateCollab(qc, a!.id);
+		}
+		return true;
 	}
 
 	useHotkeys([{ keys: "mod+enter", run: () => void submit(true), inInput: true }]);
@@ -360,8 +539,23 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 				)}
 				{!text && !files.length && <Empty title={p.submitted ? t("emptySubmission") : t("notYet")} />}
 			</div>
+			{confirmDialog}
 
 			<aside className="card-quiet space-y-4 self-start p-4 xl:sticky xl:top-6">
+				<p role="status" className={holder ? "flex items-start gap-1.5 rounded-box bg-info/10 p-2 text-xs" : "sr-only"}>
+					{holder && (
+						<>
+							<PencilSimpleLineIcon size={14} className="mt-0.5 shrink-0 text-info" />
+							{tk("someoneGrading", displayName(holder.graderName))}
+						</>
+					)}
+				</p>
+				{!holding && draft && (
+					<p className="flex items-start gap-1.5 rounded-box bg-warning/10 p-2 text-xs">
+						<ClockCountdownIcon size={14} className="mt-0.5 shrink-0 text-warning" />
+						{tk("draftPending", gradeLabel(draft.grade))}
+					</p>
+				)}
 				{max > 0 && (
 					<div>
 						<p className="mb-1 text-xs font-semibold text-base-content/65">
@@ -430,12 +624,13 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 						<p id={filesId} className="mb-1 text-xs font-semibold text-base-content/65">
 							{t("feedbackFiles")}
 						</p>
+						{holding && <p className="mb-1 text-xs text-base-content/65">{tk("filesNotScheduled")}</p>}
 						<ul className="space-y-1 text-sm">
 							{keep.map(f => (
 								<li key={f.fileurl} className="flex items-center gap-2">
 									<FileIcon ext={fileExt(f.filename)} size={16} />
 									<span className="min-w-0 grow truncate">{f.filename}</span>
-									<button type="button" className="btn btn-ghost btn-xs btn-square" onClick={() => setKeep(k => k.filter(x => x !== f))} aria-label={t("removeFile", f.filename)}>
+									<button type="button" className="btn btn-ghost btn-xs btn-square" disabled={holding} onClick={() => setKeep(k => k.filter(x => x !== f))} aria-label={t("removeFile", f.filename)}>
 										<TrashIcon size={13} />
 									</button>
 								</li>
@@ -450,7 +645,7 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 								</li>
 							))}
 						</ul>
-						<button type="button" className="btn btn-ghost btn-sm mt-1 w-full border-dashed border-base-content/15" onClick={() => fileInput.current?.click()}>
+						<button type="button" className="btn btn-ghost btn-sm mt-1 w-full border-dashed border-base-content/15" disabled={holding} onClick={() => fileInput.current?.click()}>
 							<CloudArrowUpIcon size={16} />
 							{t("addFeedbackFile")}
 						</button>
@@ -461,11 +656,11 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 					<button
 						type="button"
 						className="btn btn-primary"
-						disabled={save.isPending || invalid || max <= 0}
+						disabled={busy || invalid || max <= 0}
 						onClick={() => void submit(true)}
 						aria-keyshortcuts={MOD_LABEL === "⌘" ? "Meta+Enter" : "Control+Enter"}
 					>
-						{save.isPending ? (
+						{busy ? (
 							<>
 								<span className="loading loading-spinner loading-sm" aria-hidden="true" />
 								<span className="sr-only">{t("saving")}</span>
@@ -477,19 +672,19 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 							{MOD_LABEL}↵
 						</kbd>
 					</button>
-					<button type="button" className="btn btn-ghost btn-sm" disabled={save.isPending || invalid || max <= 0} onClick={() => void submit(false)}>
+					<button type="button" className="btn btn-ghost btn-sm" disabled={busy || invalid || max <= 0} onClick={() => void submit(false)}>
 						{t("saveOnly")}
 					</button>
-					<p role="status" className={saved && !save.isPending ? "flex items-center gap-1 text-xs text-success" : "sr-only"}>
-						{saved && !save.isPending && (
+					<p role="status" className={saved && !busy ? "flex items-center gap-1 text-xs text-success" : "sr-only"}>
+						{saved && !busy && (
 							<>
 								<CheckCircleIcon size={14} weight="fill" />
-								{t("savedToE3")}
+								{savedHeld ? tk("savedHeld") : t("savedToE3")}
 							</>
 						)}
 					</p>
-					<p role="alert" className={save.error ? "text-xs text-error" : "sr-only"}>
-						{save.error && t("saveFailed", save.error.message)}
+					<p role="alert" className={error ? "text-xs text-error" : "sr-only"}>
+						{error && t("saveFailed", error)}
 					</p>
 				</div>
 			</aside>
