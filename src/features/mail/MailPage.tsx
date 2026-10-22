@@ -28,7 +28,7 @@ import {
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type MailFolder, type MailSearch, type MailSummary, mailE3Url, PAGE_SIZE, useMailIndex, useMailMenu, useMailMessage, useSetUnread } from "./api";
+import { type MailFolder, type MailSearch, type MailSummary, mailE3Url, mailSupported, PAGE_SIZE, useMailIndex, useMailMenu, useMailMessage, useSetUnread } from "./api";
 
 const FOLDERS: { key: Exclude<MailFolder, "course">; label: string; icon: typeof TrayIcon }[] = [
 	{ key: "inbox", label: "收件匣", icon: TrayIcon },
@@ -39,6 +39,11 @@ const FOLDERS: { key: Exclude<MailFolder, "course">; label: string; icon: typeof
 ];
 
 export function MailPage() {
+	if (!mailSupported()) return <Empty icon={<EnvelopeSimpleIcon size={40} weight="duotone" />} title="這所學校沒有站內信" />;
+	return <MailInbox />;
+}
+
+function MailInbox() {
 	const search = useSearch({ from: "/app/mail" });
 	const folder: MailFolder = search.course ? "course" : (search.folder ?? "inbox");
 	const itemid = search.course ?? 0;
@@ -72,10 +77,11 @@ export function MailPage() {
 			<header className="mb-6 flex flex-wrap items-end justify-between gap-4">
 				<div>
 					<h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">信件</h1>
-					<p className="mt-1 text-sm text-base-content/55">E3 站內信。打開信會在 E3 上標為已讀；要寫信或回覆時會開 E3。</p>
+					<p className="mt-1 text-sm text-base-content/55">站內信。打開信會在學校網站上標為已讀；要寫信或回覆時會開學校網站。</p>
 				</div>
 				<a href={mailE3Url()} target="_blank" rel="noreferrer" className="btn btn-sm">
-					<PencilSimpleLineIcon size={16} />在 E3 寫信
+					<PencilSimpleLineIcon size={16} />
+					在網站寫信
 				</a>
 			</header>
 
@@ -268,7 +274,8 @@ function Reader({ id, onBack }: { id: number; onBack: () => void }) {
 						標為未讀
 					</button>
 					<a className="btn btn-sm" href={mailE3Url(id)} target="_blank" rel="noreferrer">
-						<ArrowBendUpLeftIcon size={16} />在 E3 回覆
+						<ArrowBendUpLeftIcon size={16} />
+						在網站回覆
 					</a>
 				</div>
 			</div>

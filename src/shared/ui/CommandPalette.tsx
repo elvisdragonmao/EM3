@@ -1,4 +1,4 @@
-import { NAV } from "@/app/nav";
+import { visibleNav } from "@/app/nav";
 import { useCourseIndex } from "@/features/courses/api";
 import { CourseGlyph, resolveLook } from "@/features/courses/look";
 import { usePrefs } from "@/features/preferences/store";
@@ -57,7 +57,7 @@ export function CommandPalette({ isOpen, close }: { isOpen: boolean; close: () =
 					hay: `${look.title} ${c.name} ${c.nameEn ?? ""} ${c.code ?? ""} ${c.raw.shortname}`.toLowerCase()
 				};
 			});
-		const pages = NAV.map(n => ({ key: n.to, label: n.label, hint: "頁面", icon: <n.icon size={16} className="mx-1" />, go: () => navigate({ to: n.to }), hay: n.label }));
+		const pages = visibleNav().map(n => ({ key: n.to, label: n.label, hint: "頁面", icon: <n.icon size={16} className="mx-1" />, go: () => navigate({ to: n.to }), hay: n.label }));
 		return [...pages, ...courses];
 	}, [list, current, prefs, navigate]);
 

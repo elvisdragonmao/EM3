@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { SHORTCUT_GROUPS } from "./catalog";
+import { shortcutGroups } from "./catalog";
 import { MOD_LABEL } from "./hotkeys";
 
 export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -22,7 +22,7 @@ export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () 
 					</span>
 				</header>
 				<div className="grid max-h-[70vh] grid-cols-1 gap-x-10 gap-y-6 overflow-y-auto px-6 py-5 sm:grid-cols-2">
-					{SHORTCUT_GROUPS.map(g => (
+					{shortcutGroups().map(g => (
 						<section key={g.title}>
 							<h3 className="mb-2 text-xs font-semibold tracking-wide text-base-content/45">{g.title}</h3>
 							<ul className="space-y-1.5">

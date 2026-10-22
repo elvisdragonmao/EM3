@@ -1,4 +1,4 @@
-import { NAV } from "@/app/nav";
+import { visibleNav } from "@/app/nav";
 
 export interface ShortcutGroup {
 	title: string;
@@ -6,7 +6,7 @@ export interface ShortcutGroup {
 }
 
 /** What the ⌘/ dialog lists. Keys are shown as written; "mod" renders as ⌘ or Ctrl. */
-export const SHORTCUT_GROUPS: ShortcutGroup[] = [
+export const shortcutGroups = (): ShortcutGroup[] => [
 	{
 		title: "全域",
 		items: [
@@ -17,7 +17,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
 	},
 	{
 		title: "頁面",
-		items: NAV.map((n, i) => ({ keys: [[String(i + 1)]], label: n.label }))
+		items: visibleNav().map((n, i) => ({ keys: [[String(i + 1)]], label: n.label }))
 	},
 	{
 		title: "列表",

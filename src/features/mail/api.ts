@@ -1,10 +1,18 @@
-import { call } from "@/lib/moodle/client";
+import { call as moodleCall, getMoodleBaseUrl } from "@/lib/moodle/client";
+import { MOODLE_SITES } from "@/lib/moodle/site";
 import { e3Link } from "@/lib/moodle/files";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// E3's internal mail (local_dcpcmail, a fork of the local_mail plugin).
-// The web service can list, search and read mail and toggle unread, but it
-// cannot send — composing and replying open the E3 page instead.
+// Internal mail: NYCU E3 runs local_dcpcmail, a fork of the local_mail plugin
+// that CCU runs as is; both expose the same web service shapes. Other sites
+// have neither. The web service can list, search and read mail and toggle
+// unread, but it cannot send — composing and replying open the site instead.
+
+const plugin = () => MOODLE_SITES.find(s => s.baseUrl === getMoodleBaseUrl())?.mailPlugin;
+
+export const mailSupported = () => !!plugin();
+
+const call = <T>(fn: string, params?: Parameters<typeof moodleCall>[1]) => moodleCall<T>(`local_${plugin()}_${fn}`, params);
 
 export type MailFolder = "inbox" | "starred" | "sent" | "drafts" | "trash" | "course";
 
@@ -60,23 +68,24 @@ interface MailMenu {
 
 export const PAGE_SIZE = 30;
 
-export const useMailUnread = () => useQuery({ queryKey: ["mail", "unread"], queryFn: () => call<number>("local_dcpcmail_get_unread_count"), staleTime: 2 * 60_000 });
+export const useMailUnread = () => useQuery({ queryKey: ["mail", "unread"], enabled: mailSupported(), queryFn: () => call<number>("get_unread_count"), staleTime: 2 * 60_000 });
 
-export const useMailMenu = () => useQuery({ queryKey: ["mail", "menu"], queryFn: () => call<MailMenu>("local_dcpcmail_get_menu"), staleTime: 2 * 60_000 });
+export const useMailMenu = () => useQuery({ queryKey: ["mail", "menu"], enabled: mailSupported(), queryFn: () => call<MailMenu>("get_menu"), staleTime: 2 * 60_000 });
 
 export function useMailIndex(folder: MailFolder, itemid: number, query: string, page: number) {
 	return useQuery({
 		queryKey: ["mail", "index", folder, itemid, query, page],
+		enabled: mailSupported(),
 		placeholderData: keepPreviousData,
 		staleTime: 60_000,
 		queryFn: () =>
 			query
-				? call<{ totalcount?: number; messages: MailSummary[] }>("local_dcpcmail_search_index", { type: folder, itemid, query: { content: query, limit: PAGE_SIZE } })
-				: call<{ totalcount: number; messages: MailSummary[] }>("local_dcpcmail_get_index", { type: folder, itemid, offset: page * PAGE_SIZE, limit: PAGE_SIZE })
+				? call<{ totalcount?: number; messages: MailSummary[] }>("search_index", { type: folder, itemid, query: { content: query, limit: PAGE_SIZE } })
+				: call<{ totalcount: number; messages: MailSummary[] }>("get_index", { type: folder, itemid, offset: page * PAGE_SIZE, limit: PAGE_SIZE })
 	});
 }
 
-/** Reading a message marks it read on E3, exactly like opening it there. */
+/** Reading a message marks it read on the school's site, exactly like opening it there. */
 export function useMailMessage(id: number | undefined) {
 	const qc = useQueryClient();
 	return useQuery({
@@ -84,7 +93,10 @@ export function useMailMessage(id: number | undefined) {
 		enabled: !!id,
 		staleTime: 5 * 60_000,
 		queryFn: async () => {
-			const m = await call<MailMessage>("local_dcpcmail_get_message", { id: id! });
+			const m = await call<MailMessage>("get_message", { id: id! });
+			// CCU's older local_mail returns the message without marking it read.
+			if (m.unread) await call<null>("set_unread", { id: id!, unread: false });
+			m.unread = false;
 			void qc.invalidateQueries({ queryKey: ["mail", "unread"] });
 			void qc.invalidateQueries({ queryKey: ["mail", "menu"] });
 			qc.setQueriesData<{ messages: MailSummary[] }>({ queryKey: ["mail", "index"] }, old => (old ? { ...old, messages: old.messages.map(x => (x.id === id ? { ...x, unread: false } : x)) } : old));
@@ -96,7 +108,7 @@ export function useMailMessage(id: number | undefined) {
 export function useSetUnread() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: ({ id, unread }: { id: number; unread: boolean }) => call<null>("local_dcpcmail_set_unread", { id, unread }),
+		mutationFn: ({ id, unread }: { id: number; unread: boolean }) => call<null>("set_unread", { id, unread }),
 		onSuccess: (_d, { id, unread }) => {
 			qc.setQueriesData<{ messages: MailSummary[] }>({ queryKey: ["mail", "index"] }, old => (old ? { ...old, messages: old.messages.map(x => (x.id === id ? { ...x, unread } : x)) } : old));
 			void qc.invalidateQueries({ queryKey: ["mail", "unread"] });
@@ -105,4 +117,4 @@ export function useSetUnread() {
 	});
 }
 
-export const mailE3Url = (id?: number) => e3Link(id ? `/local/dcpcmail/view.php?t=inbox&m=${id}` : "/local/dcpcmail/view.php?t=inbox&c=1");
+export const mailE3Url = (id?: number) => e3Link(id ? `/local/${plugin()}/view.php?t=inbox&m=${id}` : `/local/${plugin()}/view.php?t=inbox&c=1`);

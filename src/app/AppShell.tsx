@@ -11,7 +11,7 @@ import { CalendarDotsIcon, EnvelopeSimpleIcon, KeyboardIcon, MagnifyingGlassIcon
 import { useMailUnread } from "@/features/mail/api";
 import { motion, MotionConfig } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { NAV } from "./nav";
+import { NAV, visibleNav } from "./nav";
 import { Logo } from "@/shared/ui/Logo";
 import { Avatar } from "@/shared/ui/Avatar";
 import { FilePreviewHost } from "@/features/course/FilePreview";
@@ -41,7 +41,7 @@ export function AppShell() {
 		{ keys: "mod+k", run: palette.toggle, inInput: true },
 		{ keys: "/", run: palette.open },
 		{ keys: ["mod+/", "?"], run: () => setHelpOpen(o => !o), inInput: true },
-		...NAV.map((n, i) => ({ keys: String(i + 1), run: () => navigate({ to: n.to }) })),
+		...visibleNav().map((n, i) => ({ keys: String(i + 1), run: () => navigate({ to: n.to }) })),
 		{ keys: "j", run: () => moveListFocus(1) },
 		{ keys: "k", run: () => moveListFocus(-1) },
 		{ keys: "f", run: focusSearch },
@@ -128,7 +128,7 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 			</button>
 
 			<nav className="flex flex-col gap-0.5" aria-label="主要頁面">
-				{NAV.map((n, i) => (
+				{visibleNav().map((n, i) => (
 					<NavLink key={n.to} to={n.to} layoutGroup="side-nav" hint={String(i + 1)} badge={n.to === "/mail" ? mailUnread : undefined}>
 						<n.icon size={19} weight={pathname === n.to || (n.to !== "/" && pathname.startsWith(n.to)) ? "fill" : "regular"} />
 						{n.label}
