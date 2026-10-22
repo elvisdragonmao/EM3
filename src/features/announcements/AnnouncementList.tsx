@@ -6,6 +6,7 @@ import { Ago } from "@/shared/ui/Time";
 import { PaperclipIcon, PushPinIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { type Announcement, cleanAuthor, postTime } from "./api";
+import { t } from "./messages";
 
 export function AnnouncementList({ items, byId, showCourse = true }: { items: Announcement[]; byId?: Map<number, ParsedCourse>; showCourse?: boolean }) {
 	const seen = usePrefs(s => s.seen);
@@ -22,25 +23,31 @@ export function AnnouncementList({ items, byId, showCourse = true }: { items: An
 							className="flex gap-3 px-4 py-3.5 transition-colors hover:bg-base-content/[0.03]"
 							data-nav
 						>
-							<span className={`mt-2 size-2 shrink-0 rounded-full ${unread ? "bg-primary" : "bg-transparent"}`} aria-label={unread ? "未讀" : undefined} />
+							<span className={`mt-2 size-2 shrink-0 rounded-full ${unread ? "bg-primary" : "bg-transparent"}`} />
+							{unread && <span className="sr-only">{t("unread")}</span>}
 							<span className="min-w-0 grow">
 								<span className="flex items-center gap-2">
 									{showCourse && course && <CourseTag course={course} />}
-									{a.pinned && <PushPinIcon size={13} weight="fill" className="text-warning" />}
-									<Ago ts={postTime(a)} className="ml-auto shrink-0 text-xs text-base-content/45" />
+									{a.pinned && (
+										<span className="text-warning" title={t("pinned")}>
+											<PushPinIcon size={13} weight="fill" />
+											<span className="sr-only">{t("pinned")}</span>
+										</span>
+									)}
+									<Ago ts={postTime(a)} className="ml-auto shrink-0 text-xs text-base-content/65" />
 								</span>
 								<span className={`mt-0.5 block ${unread ? "font-semibold" : "font-medium text-base-content/80"}`}>{a.subject}</span>
-								<span className="mt-0.5 line-clamp-2 text-sm text-base-content/55">
+								<span className="mt-0.5 line-clamp-2 text-sm text-base-content/65">
 									<span className="text-base-content/70">{cleanAuthor(a.userfullname)}</span>・{htmlToText(a.message, 220)}
 								</span>
-								<span className="mt-1 flex gap-3 text-xs text-base-content/45">
+								<span className="mt-1 flex gap-3 text-xs text-base-content/65">
 									{!!a.attachments?.length && (
 										<span className="flex items-center gap-1">
 											<PaperclipIcon size={12} />
-											{a.attachments.length} 個附件
+											{t("attachments", a.attachments.length)}
 										</span>
 									)}
-									{a.numreplies > 0 && <span>{a.numreplies} 則回覆</span>}
+									{a.numreplies > 0 && <span>{t("replies", a.numreplies)}</span>}
 								</span>
 							</span>
 						</Link>
