@@ -8,7 +8,7 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { focusSearch, isApple, MOD_LABEL, moveListFocus, useHotkeys } from "@/shared/keyboard/hotkeys";
 import { ShortcutsDialog } from "@/shared/keyboard/ShortcutsDialog";
 import { CalendarDotsIcon, EnvelopeSimpleIcon, KeyboardIcon, MagnifyingGlassIcon, TableIcon } from "@phosphor-icons/react";
-import { useMailUnread } from "@/features/mail/api";
+import { mailSupported, useMailUnread } from "@/features/mail/api";
 import { motion, MotionConfig } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { t } from "./messages";
@@ -211,7 +211,7 @@ function MobileTopBar({ onSearch }: { onSearch: () => void }) {
 				<span className="font-semibold tracking-tight">EM3</span>
 			</Link>
 			<div className="grow" />
-			<MobileMailButton />
+			{mailSupported() && <MobileMailButton />}
 			<Link to="/calendar" className="btn btn-ghost btn-sm btn-circle" aria-label={t("navCalendar")}>
 				<CalendarDotsIcon size={19} />
 			</Link>
