@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { useServer } from "./store";
 import { type Data, merge, nextUpdatedAt, payload, readMeta, type Remote, type SyncMeta, stampChanges } from "./syncRules";
 
-// Settings sync for the server version: GET/PUT /api/prefs (docs/server.md). Pull once
+// Settings sync for the server version: GET/PUT /api/prefs (DESIGN.md, 伺服器版). Pull once
 // when linked and whenever the tab comes back; push about 2 s after a change. The merge
 // rules are in syncRules.ts.
 

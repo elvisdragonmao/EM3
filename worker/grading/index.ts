@@ -4,7 +4,7 @@ import { type Ctx, HttpError, json, readJson, type Route, route } from "../http"
 import { type Access, courseMembers, positiveInt, requireGrader } from "./access";
 import { type DraftRow, releaseNow, type ReleaseRow, runReleases as run } from "./release";
 
-// TA collaboration: allocations, grading locks, scheduled release (docs/server.md).
+// TA collaboration: allocations, grading locks, scheduled release (DESIGN.md, 伺服器版).
 // Rows are shared by everyone who can grade in the course; every route checks that
 // the caller can, with their own Moodle token.
 

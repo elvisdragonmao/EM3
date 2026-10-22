@@ -23,8 +23,6 @@
 
 E3 打開毫無重點，什麼都找不到。新生分不清「總覽、公告、大綱、教材」差在哪；首頁要往下捲整個畫面才看得到沒有課名的「未來事件」；午夜截止的作業顯示成隔天的「AM 12:00」；交一份作業要經過維基圖庫和八種授權條款。老師那邊也沒好到哪去：評分表一列都塞不下，下載的作業對不回學號，出一份小考要填 136 個欄位。
 
-做 EM3 之前，我們先統計了 42 門課實際用了哪些 E3 功能，再模擬五種學生、五位老師、五位助教把 E3 走過一輪，記錄會卡在哪裡。過程和結果都放在 [docs/research](docs/research/README.md)（學生）和 [docs/research/teacher-interviews](docs/research/teacher-interviews/README.md)（老師與助教）。
-
 ## 有什麼不一樣
 
 ### 打開就知道今天要做什麼
@@ -77,6 +75,8 @@ E3 的「教材」其實是資料夾，而大部分資料夾裡只有一份投�
 - **發公告**：Milkdown 編輯器，有按鈕列，也能寫 Markdown；發布前先預覽學生看到的樣子。
 - **小考出題**：打題目或從 Excel 貼上，匯出 Moodle XML 到 E3 題庫匯入。
 - **寫教材**：E3 沒開放新增教材的 API，所以在 EM3 寫好、一鍵複製貼回 E3。
+- **助教分工**（伺服器版）：依學號把學生分給各個助教，評分時「只看我這組」；名單上看得到誰正在改哪位學生，存檔前也會再讀一次 E3 上的成績，不會互相覆蓋。
+- **排程公布**（伺服器版）：分數先存在 EM3，到了指定時間一次寫進 E3，全班同時收到通知。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="public/screens/grading-dark.webp">
@@ -102,13 +102,16 @@ E3 的「教材」其實是資料夾，而大部分資料夾裡只有一份投�
 
 ### 課表、信件、鍵盤、手機、主題、語言
 
-- **課表**：貼上課綱上的時間代碼（例如 `T34R7-EC022`），或直接在格子上點。中正的上課時間會從 Moodle 自動帶入。
+- **測驗**：直接在 EM3 作答，自動儲存、倒數計時、交卷前列出還沒作答的題目。用了 Safe Exam Browser 這類限制的測驗才需要到 E3。
+- **課表**：貼上課綱上的時間代碼（例如 `T34R7-EC022`），或直接在格子上點。中正的上課時間會從 Moodle 自動帶入；伺服器版的陽明交大課表也會從課綱自動帶入。
+- **提醒**（伺服器版）：作業快截止、有作業要評分時，用瀏覽器推播或 Discord Webhook 通知你，沒開 EM3 也收得到。
+- **跨裝置同步**（伺服器版）：課程顏色、課表、片語等設定在每台裝置都一樣。
 - **信件**：站內信直接在 EM3 讀，可以依課程分類、搜尋、標回未讀（目前支援陽明交大與中正）。Moodle 沒開放寄信的 API，所以回信會打開學校網站。
 - **鍵盤**：`⌘K` 跳到任何一門課，`1`–`8` 切換頁面，`J` / `K` 上下移動，`⌘/` 列出全部快捷鍵。
 - **手機**：底部導覽列、精簡週曆，PDF 交給手機自己的檢視器開。
 - **主題**：daisyUI 的全部主題，加上 EM3 自己的淺色和深色。設定可以匯出成 JSON 帶到別台電腦。
 - **語言**：繁體中文、English、日本語，還有只用 Emoji 的版本。預設跟隨系統語言，可以在設定裡改。
-- **無障礙**：以 WCAG 2.1 AA 與臺灣網站無障礙規範 AA 等級為目標，檢測方式與結果見 [`docs/accessibility.md`](docs/accessibility.md)。
+- **無障礙**：以 WCAG 2.1 AA 與臺灣網站無障礙規範 AA 等級為目標，檢測方式與逐項自評見 [DESIGN.md 的無障礙](DESIGN.md#無障礙)。
 
 <table>
   <tr>
@@ -137,16 +140,21 @@ E3 的「教材」其實是資料夾，而大部分資料夾裡只有一份投�
 
 其他學校必須啟用 Moodle 行動版 Web Service，並允許瀏覽器跨網域呼叫 API；若學校未開放，EM3 會在登入時說明。課程、作業、公告、教材等標準 Moodle 功能可跨校使用；課表的節次時間目前有陽明交大與中正，站內信支援陽明交大與中正，交大課綱連結只適用陽明交大。
 
+第一次登入後會問你要用哪個版本，之後可以在「設定 → 版本」改：
+
+- **伺服器版（推薦）**：多了截止提醒、跨裝置同步、陽明交大課表自動帶入和助教協作。Moodle 登入憑證會加密保存在 EM3 伺服器，讓它在你沒開 EM3 時也能檢查截止時間。
+- **本機版**：所有資料只留在這個瀏覽器，完全不連 EM3 伺服器。
+
 想要像 App 一樣從主畫面打開，可以把它裝起來：iPhone 用 Safari 的「分享 → 加入主畫面」，Chrome 和 Edge 點網址列的安裝按鈕，或到 EM3 的「設定 → App」。裝好後會在自己的視窗打開，沒有網路時也看得到上次載入的內容。
 
 如果 EM3 讓你少遲交了一次作業，請到 [GitHub](https://github.com/elvisdragonmao/EM3) 按一顆 ⭐，讓更多同學找到它。發現問題或有想要的功能，歡迎開 [issue](https://github.com/elvisdragonmao/EM3/issues)。
 
 ## 隱私
 
-- **沒有後端。** EM3 是靜態網頁，瀏覽器直接呼叫你所選學校的 Moodle 行動版 API，中間沒有任何伺服器。
-- **不存密碼。** 密碼只用來向 Moodle 換一組登入憑證，憑證與 Moodle 網址放在這個網站的 cookie，登出就清掉。單一登入時，Moodle 直接把憑證交回 EM3，EM3 會核對它是這次登入產生的，用過就丟掉。
+- **你選資料放哪裡。** 瀏覽器一律直接呼叫你所選學校的 Moodle 行動版 API。本機版不連 EM3 伺服器；伺服器版把 Moodle 登入憑證用 AES-256-GCM 加密存在 EM3 伺服器（Cloudflare D1），用來提醒、同步和助教協作。切回本機版就會刪掉伺服器上你的所有資料。
+- **不存密碼。** 密碼只會送到學校的 Moodle，用來換一組登入憑證，憑證與 Moodle 網址放在這個網站的 cookie，登出就清掉。單一登入時，Moodle 直接把憑證交回 EM3，EM3 會核對它是這次登入產生的，用過就丟掉。
 - **不替你按已讀。** 公告的已讀狀態只記在你的瀏覽器（站內信例外：打開時會像在學校網站一樣標為已讀）；EM3 在你按下「確定繳交」之前不會動你的作業，老師的評分也要按下儲存才會寫入。
-- 個人設定存在 `localStorage`，E3 資料的快取存在 IndexedDB，登出時一併清除。
+- 個人設定存在 `localStorage`（伺服器版另外同步一份到伺服器），E3 資料的快取存在 IndexedDB，登出時一併清除。
 
 README 和首頁的截圖使用測試帳號拍攝，姓名、學號、作者都在拍攝時換成假資料（見 `scripts/capture-screens.mjs`）。
 
@@ -157,14 +165,15 @@ README 和首頁的截圖使用測試帳號拍攝，姓名、學號、作者都�
 ```sh
 pnpm install
 pnpm dev          # http://localhost:5173
+pnpm dev:server   # 伺服器版的 Worker 與本機 D1（http://localhost:8787，/api 由 Vite 代理過去）
 pnpm build        # 型別檢查並輸出到 dist/
 pnpm format       # Prettier
 pnpm run deploy   # 部署到 Cloudflare（需要 wrangler 登入）
 ```
 
-技術：React 19、Vite、TypeScript、Tailwind CSS 4、daisyUI 5、TanStack Query、TanStack Router（hash history）、Zustand、motion、Phosphor Icons。
+技術：React 19、Vite、TypeScript、Tailwind CSS 4、daisyUI 5、TanStack Query、TanStack Router（hash history）、Zustand、motion、Phosphor Icons；伺服器版用 Cloudflare Workers、D1 與 Cron Triggers。
 
-支援的 Moodle 站台會讓 `login/token.php`、`webservice/rest/server.php`、`webservice/upload.php`、`webservice/pluginfile.php` 回應 `Access-Control-Allow-Origin: *`，所以 `dist/` 可以放在任何靜態主機上，不需要 proxy。
+支援的 Moodle 站台會讓 `login/token.php`、`webservice/rest/server.php`、`webservice/upload.php`、`webservice/pluginfile.php` 回應 `Access-Control-Allow-Origin: *`，所以本機版的 `dist/` 可以放在任何靜態主機上，不需要 proxy。伺服器版的 Worker 在 `worker/`，開發方式見 `AGENTS.md`，設計見 [DESIGN.md](DESIGN.md#伺服器版)。
 
 ### 專案結構
 
@@ -191,9 +200,8 @@ src/
     teaching/      教學分頁、評分工作台、批次工具、公告、小考出題、寫教材
     preferences/   localStorage 設定
     settings/      設定頁、主題清單
-docs/
-  research/        E3 功能統計、學生訪談、教師與助教訪談
-  design.md        設計決定
+worker/            伺服器版：Cloudflare Worker 的 /api（帳號、同步、提醒、助教協作）
+migrations/        伺服器版的 D1 資料表
 scripts/           給開發與 agent 用的唯讀 E3 工具、截圖腳本
 ```
 

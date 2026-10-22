@@ -2,7 +2,7 @@
 	"name": "em3",
 	"account_id": "247e3a0e0c4b1d5d8ca405dfc0ffd2d0",
 	"compatibility_date": "2026-10-01",
-	// The static app plus the server version's /api (docs/server.md).
+	// The static app plus the server version's /api (DESIGN.md, 伺服器版).
 	"main": "worker/index.ts",
 	"assets": {
 		"directory": "./dist",

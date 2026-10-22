@@ -1,7 +1,7 @@
 import { requireUser } from "./auth";
 import { HttpError, json, route } from "./http";
 
-// Settings sync: GET/PUT /api/prefs (docs/server.md). One copy per account; the newer
+// Settings sync: GET/PUT /api/prefs (DESIGN.md, 伺服器版). One copy per account; the newer
 // change wins, by the client clock of the device that made it.
 //
 // PUT answers 200 either way:

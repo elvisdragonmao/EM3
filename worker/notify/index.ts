@@ -7,7 +7,7 @@ import { messages } from "./messages";
 import { type ActionEvent, planReminders, type Reminder, reminderText, type ReminderText } from "./reminders";
 import { isPushEndpoint, type PushResult, pushService, sendPush, type Vapid } from "./webpush";
 
-// Deadline and grading reminders over Web Push and Discord (docs/server.md).
+// Deadline and grading reminders over Web Push and Discord (DESIGN.md, 伺服器版).
 
 const DEFAULT_LEADS = [24, 3];
 const MAX_LEADS = 4;

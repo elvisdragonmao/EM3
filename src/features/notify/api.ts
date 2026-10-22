@@ -3,7 +3,7 @@ import { api } from "@/lib/server/api";
 import { isIos, isStandalone } from "@/shared/pwa/install";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// Reminder settings and this device's push subscription (docs/server.md, worker/notify).
+// Reminder settings and this device's push subscription (DESIGN.md, 伺服器版, worker/notify).
 
 export interface NotifySettings {
 	enabled: boolean;

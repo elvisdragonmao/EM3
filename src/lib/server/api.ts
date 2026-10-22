@@ -1,4 +1,4 @@
-// Client for the EM3 server's /api (docs/server.md). Only the server version calls it;
+// Client for the EM3 server's /api (DESIGN.md, 伺服器版). Only the server version calls it;
 // the local version never contacts EM3's server.
 
 export class ServerError extends Error {

@@ -5,7 +5,7 @@ import { api, type ServerAccount, ServerError } from "@/lib/server/api";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Which version this device uses (docs/server.md). The choice is per device and
+// Which version this device uses (DESIGN.md, 伺服器版). The choice is per device and
 // never synced: it decides whether anything is synced at all.
 
 export type DataMode = "server" | "local";

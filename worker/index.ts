@@ -1,4 +1,4 @@
-// EM3 server: serves the static app and the /api routes of the server version (docs/server.md).
+// EM3 server: serves the static app and the /api routes of the server version (DESIGN.md, 伺服器版).
 
 import { routes as authRoutes } from "./auth";
 import type { Env } from "./env";

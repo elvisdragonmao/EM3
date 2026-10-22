@@ -3,7 +3,7 @@ import { requireUser } from "./auth";
 import type { Env } from "./env";
 import { HttpError, json, route } from "./http";
 
-// NYCU syllabus class times: GET /api/nycu/schedules (docs/server.md). The syllabus is
+// NYCU syllabus class times: GET /api/nycu/schedules (DESIGN.md, 伺服器版). The syllabus is
 // public, so rows are shared by everyone and keyed by course, not by user.
 
 const OUTLINE = "https://timetable.nycu.edu.tw/?r=main/getCrsOutlineBase";

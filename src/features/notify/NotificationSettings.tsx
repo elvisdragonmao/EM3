@@ -1,4 +1,4 @@
-// Reminder settings for the server version (docs/server.md): push, Discord webhook, lead times.
+// Reminder settings for the server version (DESIGN.md, 伺服器版): push, Discord webhook, lead times.
 
 import { BellRingingIcon, BellSlashIcon, DiscordLogoIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useEffect, useId, useState } from "react";
