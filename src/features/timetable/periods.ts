@@ -1,5 +1,6 @@
 import { getMoodleBaseUrl } from "../../lib/moodle/client";
 import { DEFAULT_MOODLE_URL } from "../../lib/moodle/site";
+import { shortWeekday, weekdayName } from "../../lib/time/relative";
 
 // Each school numbers its class periods differently, so the period table, the
 // way students write a schedule, and the grid rows all come from the signed-in
@@ -24,7 +25,7 @@ export interface SchoolPeriods {
 	core: string[];
 	parse: (input: string) => { slots: Slot[]; room?: string };
 	format: (slots: Slot[]) => string;
-	/** Placeholder for the schedule input. */
+	/** A sample schedule for the input's placeholder and hint, in the school's own notation. */
 	example: string;
 	/** Courses carry a `schedule` (and `room`) custom field EM3 can fill the timetable from. */
 	fromMoodle?: boolean;
@@ -34,7 +35,15 @@ export interface SchoolPeriods {
 
 /** 0 = Monday … 6 = Sunday. */
 export const DAY_CODES = ["M", "T", "W", "R", "F", "S", "U"] as const;
+/** Chinese day characters as schools write them in schedules (「週二 E,F」); data, not UI text. */
 export const DAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
+
+// 2024-01-01 was a Monday, so day n of that week has the weekday for index n.
+const onDay = (day: number) => new Date(2024, 0, 1 + day);
+/** Localized weekday name for a Monday-based day index, e.g. 星期二 / Tuesday. */
+export const dayName = (day: number) => weekdayName(onDay(day));
+/** Localized short weekday for a Monday-based day index, e.g. 週二 / Tue. */
+export const shortDayName = (day: number) => shortWeekday(onDay(day));
 
 const minutes = (hm: string) => {
 	const [h, m] = hm.split(":").map(Number);
@@ -125,7 +134,7 @@ const SCHOOLS: Record<string, SchoolPeriods> = {
 			groupByDay(slots, NYCU_PERIODS)
 				.map(([d, codes]) => DAY_CODES[d] + codes.join(""))
 				.join(""),
-		example: "例：T34"
+		example: "T34"
 	},
 	"https://ecourse2.ccu.edu.tw": {
 		periods: CCU_PERIODS,
@@ -133,7 +142,7 @@ const SCHOOLS: Record<string, SchoolPeriods> = {
 		core: ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
 		parse: parseCcu,
 		format: formatCcu,
-		example: "例：週二 E,F",
+		example: "週二 E,F",
 		fromMoodle: true,
 		// Each block is three hourly periods and two lettered ones: Ⅰ = 1-3 and A-B, … Ⅴ = 13-15 and I-J.
 		sections: ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ"].map((label, i) => ({ label, rows: [1, 2, 3].map(n => String(i * 3 + n)) }))

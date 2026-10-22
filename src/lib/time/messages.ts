@@ -1,4 +1,5 @@
-import { defineMessages } from "@/i18n";
+// Relative import so the Node test runner (tsx, no path aliases) can load it through timetable/periods.ts.
+import { defineMessages } from "../../i18n";
 
 // Every phrase ends with the clock time when it has one, so deadlinePhrase can
 // turn a trailing 23:59 into 24:00.

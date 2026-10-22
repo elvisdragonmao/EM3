@@ -1,5 +1,5 @@
 import { useCourseIndex } from "@/features/courses/api";
-import { CourseGlyph, resolveLook } from "@/features/courses/look";
+import { CourseGlyph, courseText, resolveLook } from "@/features/courses/look";
 import type { ParsedCourse } from "@/features/courses/parse";
 import { type TimetableEntry, usePrefs } from "@/features/preferences/store";
 import { PageTitle } from "@/shared/ui/States";
@@ -7,10 +7,12 @@ import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, PaintBrushIcon } from "@
 import { gridArrow } from "@/shared/keyboard/hotkeys";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { tc } from "@/i18n/common";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { syllabusUrl } from "./import";
+import { t } from "./messages";
 import { blocksFor, blockTime, classMoment, useNow } from "./now";
-import { DAY_LABELS, dayIndex, formatSlots, overlaps, parseScheduleCode, periodByCode, periodEndMinutes, periodStartMinutes, schoolPeriods } from "./periods";
+import { dayIndex, formatSlots, overlaps, parseScheduleCode, periodByCode, periodEndMinutes, periodStartMinutes, schoolPeriods } from "./periods";
 import { useManualTimetable, useTimetable } from "./schedule";
 
 /** Height of one grid row. Rows are even, like the school's own timetable, not stretched to the real breaks. */
@@ -26,6 +28,9 @@ export function TimetablePage() {
 	const setTimetable = usePrefs(s => s.setTimetable);
 	const school = schoolPeriods();
 	const [brush, setBrush] = useState<number | null>(null);
+	const [status, setStatus] = useState("");
+	const hintId = useId();
+	const gridHintId = useId();
 	const now = useNow();
 	const moment = classMoment(timetable, now);
 	const grid = useRef<HTMLDivElement>(null);
@@ -48,7 +53,7 @@ export function TimetablePage() {
 	if (!school)
 		return (
 			<div>
-				<PageTitle title="課表" subtitle="EM3 還沒有這所學校的節次時間，暫時無法顯示課表。" />
+				<PageTitle title={t("title")} subtitle={t("noTable")} />
 			</div>
 		);
 
@@ -91,16 +96,24 @@ export function TimetablePage() {
 	const today = dayIndex(now);
 	const minute = now.getHours() * 60 + now.getMinutes();
 
+	const periodTime = (code: string) => `${periodByCode(code)!.start}–${periodByCode(code)!.end}`;
+
 	function toggle(day: number, period: string) {
 		const owner = byCell.get(`${day}:${period}`);
+		const cell = t("cellLabel", day, period.toUpperCase(), periodTime(period));
 		if (owner !== undefined) {
 			const e = timetable[owner];
 			setTimetable(owner, { ...e, slots: e.slots.filter(s => !(s.day === day && periodByCode(s.period) && overlaps(s.period, period))) });
-			if (owner === brush || brush === null) return;
+			if (owner === brush || brush === null) {
+				setStatus(t("cleared", cell));
+				return;
+			}
 		}
 		if (brush === null) return;
 		const e = timetable[brush] ?? { slots: [] };
 		setTimetable(brush, { ...e, slots: [...e.slots, { day, period }] });
+		const course = currentCourses.find(c => c.id === brush);
+		setStatus(t("assigned", cell, course ? resolveLook(course, looks[course.id]).title : ""));
 	}
 
 	// A period lights up only while it runs and today has a class in it.
@@ -124,38 +137,42 @@ export function TimetablePage() {
 			{children}
 		</span>
 	);
-	const label = (p: { code: string; start: string; end: string }, secondaryAxis: boolean) =>
+	const label = (p: { code: string; start: string; end: string }) =>
 		tile(
 			p.code,
 			box(p.code)!,
 			isNow(p.code),
-			secondaryAxis ? "text-base-content/45" : "text-base-content/65",
+			"text-base-content/65",
 			<>
 				<span className="text-xs font-semibold">{p.code.toUpperCase()}</span>
 				<span className="text-[0.7rem]">{p.start}</span>
-				<span className="text-[0.7rem] opacity-70">{p.end}</span>
+				<span className="text-[0.7rem]">{p.end}</span>
 			</>
 		);
 
 	return (
 		<div>
-			<PageTitle title="課表" subtitle={`${current?.label ?? "本學期"}。設定之後，首頁和側欄會在上課時把那堂課放到最前面。`} />
+			<PageTitle title={t("title")} subtitle={t("subtitle", current?.label)} />
+			<p role="status" className="sr-only">
+				{status}
+			</p>
 
 			<div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_22rem]">
-				<section className="card-quiet overflow-x-auto">
+				<section className="card-quiet relative overflow-x-auto">
 					<div
 						ref={grid}
 						onKeyDown={e => gridArrow(e, grid.current)}
 						role="group"
-						aria-label="每週課表"
+						aria-label={t("tableLabel")}
+						aria-describedby={gridHintId}
 						className="grid min-w-[36rem] pr-2"
 						style={{ gridTemplateColumns: `${secondary.length ? "8.75rem" : "4.25rem"} repeat(${days.length}, minmax(0, 1fr))` }}
 					>
 						{/* The header's bottom rule is the table's top line, across the gutter too. */}
 						<div className="border-b hairline" />
 						{days.map(d => (
-							<div key={d} className={`border-b hairline py-3 text-center text-xs font-medium ${d === today ? "text-primary" : "text-base-content/50"}`}>
-								週{DAY_LABELS[d]}
+							<div key={d} aria-hidden className={`border-b hairline py-3 text-center text-xs font-medium ${d === today ? "text-primary" : "text-base-content/65"}`}>
+								{t("dayHeader", d)}
 							</div>
 						))}
 
@@ -164,12 +181,12 @@ export function TimetablePage() {
 								{sections && (
 									<div className="relative w-6 shrink-0">
 										{sections.map(s =>
-											tile(s.label, { top: rowTop.get(s.rows[0])!, height: s.rows.length * ROW }, false, "text-base-content/45", <span className="text-xs font-semibold">{s.label}</span>)
+											tile(s.label, { top: rowTop.get(s.rows[0])!, height: s.rows.length * ROW }, false, "text-base-content/65", <span className="text-xs font-semibold">{s.label}</span>)
 										)}
 									</div>
 								)}
-								<div className="relative flex-1">{shown.map(p => label(p, false))}</div>
-								{secondary.length > 0 && <div className="relative flex-1">{secondary.map(p => label(p, true))}</div>}
+								<div className="relative flex-1">{shown.map(p => label(p))}</div>
+								{secondary.length > 0 && <div className="relative flex-1">{secondary.map(p => label(p))}</div>}
 							</div>
 						</div>
 
@@ -180,13 +197,14 @@ export function TimetablePage() {
 									const course = id !== undefined ? currentCourses.find(c => c.id === id) : undefined;
 									return (
 										<button
+											type="button"
 											key={p.code}
 											onClick={() => toggle(d, p.code)}
 											data-cell={`${pi}:${di}`}
 											tabIndex={pi === 0 && di === 0 ? 0 : -1}
 											className={`absolute inset-x-0 ${pi === 0 ? "" : `border-t ${sectionStart.has(p.code) ? "border-base-content/25" : "hairline"}`} transition-colors active:bg-base-content/10 ${brush !== null ? "hover:bg-base-content/[0.06]" : ""}`}
 											style={{ top: rowTop.get(p.code), height: ROW }}
-											aria-label={`週${DAY_LABELS[d]} 第 ${p.code} 節${course ? `：${resolveLook(course, looks[course.id]).title}` : ""}`}
+											aria-label={t("cellLabel", d, p.code.toUpperCase(), periodTime(p.code), course && resolveLook(course, looks[course.id]).title)}
 										/>
 									);
 								})}
@@ -217,22 +235,23 @@ export function TimetablePage() {
 														top: first.top + 4,
 														height: h,
 														backgroundColor: `color-mix(in oklab, ${look.color} ${live ? 34 : 20}%, var(--color-base-100))`,
-														color: `color-mix(in oklab, ${look.color} 70%, var(--color-base-content))`,
+														// Course colours can be light; courseText keeps the label at 4.5:1 on the tint.
+														color: courseText(look.color),
 														["--tw-ring-color" as string]: look.color
 													}}
 												>
 													<span className={`text-sm font-medium ${h < 90 ? "line-clamp-1" : "line-clamp-2"}`}>{look.title}</span>
-													<span className="mt-0.5 block truncate text-xs tabular-nums opacity-80">
+													<span className="mt-0.5 block truncate text-xs tabular-nums">
 														{blockTime(b)}
 														{h < 90 && b.room ? ` · ${b.room}` : ""}
 													</span>
-													{h >= 90 && b.room && <span className="block truncate text-xs opacity-65">{b.room}</span>}
+													{h >= 90 && b.room && <span className="block truncate text-xs">{b.room}</span>}
 													{brush === null && (
 														<Link
 															to="/courses/$courseId"
 															params={{ courseId: String(b.courseId) }}
 															className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
-															aria-label={`打開${look.title}`}
+															aria-label={t("openCourse", look.title, [blockTime(b), b.room].filter(Boolean).join(" · "))}
 														/>
 													)}
 												</motion.div>
@@ -250,22 +269,29 @@ export function TimetablePage() {
 				</section>
 
 				<section className="space-y-2">
-					<p className="flex items-center gap-1.5 px-1 text-xs text-base-content/55">
+					<p id={hintId} className="flex items-center gap-1.5 px-1 text-xs text-base-content/65">
 						<PaintBrushIcon size={14} />
-						{school.fromMoodle
-							? `上課時間已從學校的 Moodle 帶入。要修改時，輸入上課時間（${school.example}），或選一門課當畫筆再點左邊的格子。`
-							: "三種設定方式：輸入課綱上的時間代碼（例如 R34-EC114）、點 ↗ 打開課綱查、或選一門課當畫筆再點左邊的格子。"}
+						{school.fromMoodle ? t("hintMoodle", school.example) : t("hint")}
 					</p>
 					{courses.map(c => (
-						<CourseScheduleRow key={c.id} course={c} entry={timetable[c.id]} manual={!!manual[c.id]} selected={brush === c.id} onSelect={() => setBrush(b => (b === c.id ? null : c.id))} />
+						<CourseScheduleRow
+							key={c.id}
+							course={c}
+							hintId={hintId}
+							entry={timetable[c.id]}
+							manual={!!manual[c.id]}
+							selected={brush === c.id}
+							onSelect={() => setBrush(b => (b === c.id ? null : c.id))}
+						/>
 					))}
 					{!courses.length && (
-						<p className="px-1 text-sm text-base-content/50">
-							本學期沒有課程，或都被隱藏了。到{" "}
-							<Link to="/courses" className="link">
-								課程
-							</Link>{" "}
-							看看。
+						<p className="px-1 text-sm text-base-content/65">
+							{t(
+								"noCourses",
+								<Link to="/courses" className="link">
+									{t("courses")}
+								</Link>
+							)}
 						</p>
 					)}
 				</section>
@@ -276,12 +302,14 @@ export function TimetablePage() {
 
 function CourseScheduleRow({
 	course,
+	hintId,
 	entry,
 	manual,
 	selected,
 	onSelect
 }: {
 	course: ParsedCourse;
+	hintId: string;
 	entry?: TimetableEntry;
 	/** Set by the student, as opposed to filled in from Moodle. */
 	manual: boolean;
@@ -312,32 +340,42 @@ function CourseScheduleRow({
 			className={`card-quiet flex items-center gap-3 p-2.5 transition ${selected ? "ring-2" : ""}`}
 			style={selected ? ({ "--tw-ring-color": look.color } as React.CSSProperties) : undefined}
 		>
-			<button onClick={onSelect} className="flex min-w-0 grow items-center gap-2.5 text-left" aria-pressed={selected}>
+			<button type="button" onClick={onSelect} className="flex min-w-0 grow items-center gap-2.5 text-left" aria-pressed={selected}>
 				<CourseGlyph look={look} size="sm" />
 				<span className="truncate text-sm font-medium">{look.title}</span>
+				<span className="sr-only">{t("useAsBrush")}</span>
+				{selected && <PaintBrushIcon size={14} weight="bold" className="shrink-0" />}
 			</button>
 			<input
 				className="input input-xs w-28 font-mono uppercase placeholder:normal-case placeholder:font-sans"
-				placeholder={school?.example}
+				placeholder={school ? t("codePlaceholder", school.example) : undefined}
+				autoComplete="off"
+				spellCheck={false}
+				aria-describedby={hintId}
 				value={draft ?? code}
 				onChange={e => setDraft(e.target.value)}
 				onBlur={commit}
 				onKeyDown={e => e.key === "Enter" && commit()}
-				aria-label={`${look.title} 上課時間代碼`}
+				aria-label={t("codeLabel", look.title)}
 			/>
 			{/* Both slots always render so every row's input lines up. */}
 			{syllabus ? (
-				<a href={syllabus} target="_blank" rel="noreferrer" className="btn btn-ghost btn-xs btn-square" title="打開課綱查時間" aria-label={`打開${look.title}的課綱`}>
+				<a href={syllabus} target="_blank" rel="noreferrer" className="btn btn-ghost btn-xs btn-square" title={t("openSyllabusTitle")}>
 					<ArrowSquareOutIcon size={14} />
+					<span className="sr-only">
+						{t("openSyllabus", look.title)}
+						{tc("openInNewTab")}
+					</span>
 				</a>
 			) : (
 				<span className="size-6 shrink-0" aria-hidden />
 			)}
 			<button
+				type="button"
 				className={`btn btn-ghost btn-xs btn-square ${manual ? "" : "invisible"}`}
 				onClick={() => setTimetable(course.id, null)}
-				aria-label={`清除${look.title}自訂的上課時間`}
-				title={school?.fromMoodle ? "清除自訂時間，改用 Moodle 上的時間" : "清除時間"}
+				aria-label={school?.fromMoodle ? t("clearCustom", look.title) : t("clear", look.title)}
+				title={school?.fromMoodle ? t("clearCustomTitle") : t("clearTitle")}
 				tabIndex={manual ? 0 : -1}
 			>
 				<ArrowCounterClockwiseIcon size={14} />
