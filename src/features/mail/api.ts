@@ -94,8 +94,9 @@ export function useMailMessage(id: number | undefined) {
 		staleTime: 5 * 60_000,
 		queryFn: async () => {
 			const m = await call<MailMessage>("get_message", { id: id! });
-			// CCU's older local_mail returns the message without marking it read.
-			if (m.unread) await call<null>("set_unread", { id: id!, unread: false });
+			// The original local_mail (CCU) returns the message without marking it read; NYCU's fork marks it itself.
+			// A failed write must not hide a message that was read fine, so it only logs.
+			if (m.unread && plugin() === "mail") await call<null>("set_unread", { id: id!, unread: false }).catch(console.warn);
 			m.unread = false;
 			void qc.invalidateQueries({ queryKey: ["mail", "unread"] });
 			void qc.invalidateQueries({ queryKey: ["mail", "menu"] });
