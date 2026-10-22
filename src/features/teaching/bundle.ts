@@ -1,8 +1,10 @@
+import { getLanguage, langTag, LOCALES } from "@/i18n";
 import { safeName } from "@/lib/download";
 import { fileUrl } from "@/lib/moodle/files";
 import type { SubmissionStatus } from "@/lib/moodle/types";
 import { unzipSync, zipSync, type Zippable } from "fflate";
 import { displayName, onlineText, type Participant, submittedFiles } from "./api";
+import { SHEET, t } from "./grading-messages";
 
 // Offline grading round trip:
 //   1. download every submission as a zip, one folder per student: 「王小明_12345/」
@@ -20,14 +22,22 @@ const csvCell = (v: string | number | null | undefined) => {
 	return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const CSV_HEADER = ["學號", "姓名", "email", "userid", "繳交狀態", "繳交時間", "分數", "評語"];
+/** Words for the files EM3 writes, in the current spoken language. */
+export const sheetText = () => SHEET[getLanguage()];
+const SHEETS = LOCALES.flatMap(l => (l === "emoji" ? [] : [SHEET[l]]));
+
+export const csvHeader = () => {
+	const c = sheetText().cols;
+	return [c.sid, c.name, c.email, c.userid, c.status, c.time, c.grade, c.comment];
+};
 
 export function gradesCsv(rows: { p: Participant; sid?: string; status?: SubmissionStatus; grade: string; comment: string }[]) {
-	const lines = [CSV_HEADER.join(",")];
+	const sheet = sheetText();
+	const lines = [csvHeader().join(",")];
 	for (const { p, sid, status, grade, comment } of rows) {
 		const sub = status?.lastattempt?.submission;
-		const time = sub?.timemodified ? new Date(sub.timemodified * 1000).toLocaleString("zh-TW", { hour12: false }) : "";
-		lines.push([sid ?? "", displayName(p.fullname), p.email ?? "", p.id, p.submitted ? "已繳交" : "未繳交", time, grade, comment].map(csvCell).join(","));
+		const time = sub?.timemodified ? new Date(sub.timemodified * 1000).toLocaleString(langTag(), { hour12: false }) : "";
+		lines.push([sid ?? "", displayName(p.fullname), p.email ?? "", p.id, p.submitted ? sheet.submitted : sheet.missing, time, grade, comment].map(csvCell).join(","));
 	}
 	// BOM so Excel opens UTF-8 Chinese correctly.
 	return new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -49,7 +59,7 @@ export async function buildSubmissionZip(
 		const text = onlineText(st);
 		if (!files.length && !text) continue;
 		tree[dir] = {};
-		if (text) (tree[dir] as Zippable)["線上文字.html"] = new TextEncoder().encode(`<!doctype html><meta charset="utf-8"><title>${dir}</title>${text}`);
+		if (text) (tree[dir] as Zippable)[sheetText().onlineTextFile] = new TextEncoder().encode(`<!doctype html><meta charset="utf-8"><title>${dir}</title>${text}`);
 		for (const f of files) jobs.push({ path: `${dir}/${safe(f.filename)}`, url: f.fileurl });
 	}
 	let done = 0;
@@ -61,7 +71,7 @@ export async function buildSubmissionZip(
 			onProgress?.(++done, jobs.length);
 		})
 	);
-	tree["成績表.csv"] = new Uint8Array(await csv.arrayBuffer());
+	tree[`${sheetText().gradesFile}.csv`] = new Uint8Array(await csv.arrayBuffer());
 	return new Blob([zipSync(tree, { level: 6 }) as BlobPart], { type: "application/zip" });
 }
 
@@ -115,12 +125,14 @@ export function gradesFromCsv(text: string, max: number): CsvGrade[] {
 	const [header, ...rows] = parseCsv(text);
 	if (!header) return [];
 	const find = (...names: string[]) => header.findIndex(h => names.some(n => h.trim().toLowerCase() === n.toLowerCase()));
-	const iSid = find("學號", "帳號", "username", "student id");
-	const iId = find("userid", "id", "使用者 id");
-	const iEmail = find("email", "電子郵件", "電子郵件地址");
-	const iGrade = find("分數", "grade", "成績");
-	const iComment = find("評語", "feedback", "回饋", "comment");
-	if (iGrade < 0) return [{ line: 1, grade: null, error: "找不到「分數」欄位" }];
+	// Column names from every language EM3 exports in, plus common spellings from other sheets.
+	const cols = (key: keyof (typeof SHEET)["en"]["cols"]) => SHEETS.map(s => s.cols[key]);
+	const iSid = find(...cols("sid"), "帳號", "username", "student id");
+	const iId = find(...cols("userid"), "id", "使用者 id");
+	const iEmail = find(...cols("email"), "電子郵件", "電子郵件地址", "email address");
+	const iGrade = find(...cols("grade"), "grade", "成績", "得点");
+	const iComment = find(...cols("comment"), "feedback", "回饋", "comment", "フィードバック");
+	if (iGrade < 0) return [{ line: 1, grade: null, error: t("noGradeColumn", sheetText().cols.grade) }];
 	// A plain 「id」 column is the Moodle user id only if no 學號 column exists.
 	return rows.map((r, i) => {
 		const raw = r[iGrade]?.trim() ?? "";
@@ -133,8 +145,8 @@ export function gradesFromCsv(text: string, max: number): CsvGrade[] {
 			grade: n,
 			comment: iComment >= 0 ? r[iComment] : undefined
 		};
-		if (n !== null && (Number.isNaN(n) || n < 0 || n > max)) out.error = `分數「${raw}」不在 0–${max} 之間`;
-		if (!out.sid && !out.userid && !out.email) out.error = "沒有學號、userid 或 email";
+		if (n !== null && (Number.isNaN(n) || n < 0 || n > max)) out.error = t("gradeOutOfRange", raw, max);
+		if (!out.sid && !out.userid && !out.email) out.error = t("noStudentKey");
 		return out;
 	});
 }
@@ -159,7 +171,7 @@ export async function matchFeedbackFiles(inputs: File[], ids: Set<number>): Prom
 		if (/\.zip$/i.test(f.name)) {
 			const entries = unzipSync(new Uint8Array(await f.arrayBuffer()));
 			for (const [path, data] of Object.entries(entries)) {
-				if (path.endsWith("/") || /(^|\/)(__MACOSX|\.DS_Store)/.test(path) || /\.csv$/i.test(path) || /線上文字\.html$/.test(path)) continue;
+				if (path.endsWith("/") || /(^|\/)(__MACOSX|\.DS_Store)/.test(path) || /\.csv$/i.test(path) || SHEETS.some(s => path.split("/").pop() === s.onlineTextFile)) continue;
 				add(path, new File([data as BlobPart], path.split("/").pop()!));
 			}
 		} else add(f.webkitRelativePath || f.name, f);

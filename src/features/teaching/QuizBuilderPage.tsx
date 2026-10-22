@@ -1,13 +1,16 @@
 import { useCourseIndex } from "@/features/courses/api";
 import { saveBlob } from "@/lib/download";
 import { cleanHtml, e3Link } from "@/lib/moodle/files";
+import { tc } from "@/i18n/common";
 import { markdownToHtml } from "@/shared/editor/markdown";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ClipboardTextIcon, DownloadSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
-import { fromSpreadsheet, newQuestion, problems, type QType, QTYPE_LABEL, type Question, toMoodleXml } from "./quizXml";
+import { useEffect, useId, useRef, useState } from "react";
+import { t } from "./messages";
+import { fromSpreadsheet, newQuestion, problems, type QType, QTYPES, qtypeLabel, type Question, toMoodleXml } from "./quizXml";
 
 const KEY = (id: string) => `em3:quiz-draft:${id}`;
 
@@ -27,7 +30,9 @@ export function QuizBuilderPage() {
 	const course = useCourseIndex().byId.get(Number(courseId));
 	const [state, setState] = useState(() => load(courseId));
 	const [pasting, setPasting] = useState(false);
+	const [announcement, setAnnouncement] = useState("");
 	const { questions, category } = state;
+	useDocumentTitle(course ? `${t("quizBuilder")} · ${course.name}` : t("quizBuilder"));
 
 	useEffect(() => {
 		try {
@@ -50,21 +55,19 @@ export function QuizBuilderPage() {
 
 	function download() {
 		const xml = toMoodleXml(questions, category);
-		saveBlob(new Blob([xml], { type: "application/xml" }), `${course?.raw.shortname ?? courseId}-${category.trim() || "題目"}.xml`);
+		saveBlob(new Blob([xml], { type: "application/xml" }), `${course?.raw.shortname ?? courseId}-${category.trim() || t("defaultFileName")}.xml`);
 	}
 
 	return (
 		<div className="mx-auto max-w-6xl">
 			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
-				返回
+				{t("back")}
 			</button>
 			<header className="mb-6">
 				{course && <CourseTag course={course} link />}
-				<h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">小考出題</h1>
-				<p className="mt-1 max-w-2xl text-sm text-base-content/55">
-					在這裡打題目，下載成 Moodle XML，再到 E3 的題庫匯入。E3 沒有開放建立小考的 API，所以小考本身（開放時間、作答次數）還是要在 E3 設定；題目只要匯入一次。草稿存在這個瀏覽器。
-				</p>
+				<h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{t("quizBuilder")}</h1>
+				<p className="mt-1 max-w-2xl text-sm text-base-content/65">{t("quizIntro")}</p>
 			</header>
 
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
@@ -78,7 +81,10 @@ export function QuizBuilderPage() {
 									count={questions.length}
 									onChange={p => update(q.id, p)}
 									onMove={d => move(i, d)}
-									onRemove={() => setState(s => ({ ...s, questions: s.questions.filter(x => x.id !== q.id) }))}
+									onRemove={() => {
+										setState(s => ({ ...s, questions: s.questions.filter(x => x.id !== q.id) }));
+										setAnnouncement(t("removedQuestion", i + 1));
+									}}
 								/>
 							</motion.div>
 						))}
@@ -86,25 +92,29 @@ export function QuizBuilderPage() {
 					<div className="flex flex-wrap gap-2">
 						<button className="btn" onClick={() => setState(s => ({ ...s, questions: [...s.questions, newQuestion(s.questions.at(-1)?.type ?? "single")] }))}>
 							<PlusIcon size={16} />
-							新增一題
+							{t("addQuestion")}
 						</button>
 						<button className="btn btn-ghost" onClick={() => setPasting(true)}>
 							<ClipboardTextIcon size={16} />
-							從試算表貼上
+							{t("pasteFromSheet")}
 						</button>
 					</div>
+					<p className="sr-only" role="status">
+						{announcement}
+					</p>
 				</div>
 
 				<aside className="card-quiet space-y-4 self-start p-4 lg:sticky lg:top-6">
 					<label className="block">
-						<span className="mb-1 block text-xs font-semibold text-base-content/50">題庫類別（匯入後放在這個資料夾）</span>
-						<input className="input input-sm w-full" placeholder="例如：第 3 週小考" value={category} onChange={e => setState(s => ({ ...s, category: e.target.value }))} />
+						<span className="mb-1 block text-xs font-semibold text-base-content/65">{t("category")}</span>
+						<input className="input input-sm w-full" placeholder={t("categoryPlaceholder")} value={category} onChange={e => setState(s => ({ ...s, category: e.target.value }))} />
 					</label>
-					<p className="text-sm">
-						{questions.length} 題 · 共 {total} 分
+					<p className="text-sm">{t("quizSummary", questions.length, total)}</p>
+					<p className="sr-only" role="status">
+						{issues.length ? t("issueCount", issues.length) : t("readyToDownload")}
 					</p>
 					{issues.length > 0 && (
-						<ul className="space-y-1 rounded-lg bg-warning/10 p-3 text-xs">
+						<ul id="quiz-issues" aria-label={t("issuesLabel")} className="space-y-1 rounded-lg bg-warning/10 p-3 text-xs">
 							{issues.map(m => (
 								<li key={m} className="flex gap-1">
 									<WarningIcon size={13} className="mt-0.5 shrink-0 text-warning" />
@@ -113,33 +123,45 @@ export function QuizBuilderPage() {
 							))}
 						</ul>
 					)}
-					<button className="btn btn-primary w-full" disabled={issues.length > 0} onClick={download}>
+					<button className="btn btn-primary w-full" disabled={issues.length > 0} aria-describedby={issues.length ? "quiz-issues" : undefined} onClick={download}>
 						<DownloadSimpleIcon size={16} />
-						下載 Moodle XML
+						{t("downloadXml")}
 					</button>
 					<ol className="list-decimal space-y-1.5 pl-5 text-xs text-base-content/65">
-						<li>下載 XML 檔。</li>
+						<li>{t("step1")}</li>
 						<li>
-							打開
-							<a className="link mx-1" href={e3Link(`/question/bank/importquestions/import.php?courseid=${courseId}`)} target="_blank" rel="noreferrer">
-								E3 題庫匯入
-							</a>
-							，格式選「Moodle XML」，上傳檔案。
+							{t(
+								"step2",
+								<a className="link mx-1" href={e3Link(`/question/bank/importquestions/import.php?courseid=${courseId}`)} target="_blank" rel="noreferrer">
+									{t("importLink")}
+									<span className="sr-only">{tc("openInNewTab")}</span>
+								</a>
+							)}
 						</li>
 						<li>
-							到 E3 新增或打開小考，「新增題目 → 從題庫」選這個類別。
-							<a className="link ml-1" href={e3Link(`/course/modedit.php?add=quiz&course=${courseId}&section=0&return=0`)} target="_blank" rel="noreferrer">
-								新增小考
-							</a>
+							{t(
+								"step3",
+								<a className="link ml-1" href={e3Link(`/course/modedit.php?add=quiz&course=${courseId}&section=0&return=0`)} target="_blank" rel="noreferrer">
+									{t("newQuiz")}
+									<span className="sr-only">{tc("openInNewTab")}</span>
+								</a>
+							)}
 						</li>
 					</ol>
-					<button className="btn btn-ghost btn-xs text-error" onClick={() => confirm("清空所有題目？") && setState({ category: "", questions: [newQuestion()] })}>
-						清空草稿
+					<button className="btn btn-ghost btn-xs text-error" onClick={() => confirm(t("clearConfirm")) && setState({ category: "", questions: [newQuestion()] })}>
+						{t("clearDraft")}
 					</button>
 				</aside>
 			</div>
 
-			<PasteDialog open={pasting} onClose={() => setPasting(false)} onAdd={qs => setState(s => ({ ...s, questions: [...s.questions.filter(q => q.text.trim()), ...qs] }))} />
+			<PasteDialog
+				open={pasting}
+				onClose={() => setPasting(false)}
+				onAdd={qs => {
+					setState(s => ({ ...s, questions: [...s.questions.filter(q => q.text.trim()), ...qs] }));
+					setAnnouncement(t("addedQuestions", qs.length));
+				}}
+			/>
 		</div>
 	);
 }
@@ -160,6 +182,10 @@ function QuestionCard({
 	onRemove: () => void;
 }) {
 	const [preview, setPreview] = useState(false);
+	const uid = useId();
+	const n = index + 1;
+	const qIssues = problems(q, index);
+	const letter = (i: number) => String.fromCharCode(65 + i);
 	const setType = (type: QType) => {
 		const fresh = newQuestion(type);
 		onChange({
@@ -169,93 +195,118 @@ function QuestionCard({
 		});
 	};
 	return (
-		<section className="card-quiet p-4">
+		<fieldset className="card-quiet min-w-0 p-4" aria-describedby={qIssues.length ? `${uid}-issues` : undefined}>
+			<legend className="sr-only">{t("questionN", n)}</legend>
+			<p id={`${uid}-issues`} hidden>
+				{qIssues.join(" ")}
+			</p>
 			<div className="mb-3 flex flex-wrap items-center gap-2">
-				<span className="grid size-7 place-items-center rounded-full bg-base-200 text-sm font-semibold tabular-nums">{index + 1}</span>
-				<select className="select select-sm w-auto" value={q.type} onChange={e => setType(e.target.value as QType)} aria-label="題型">
-					{(Object.keys(QTYPE_LABEL) as QType[]).map(t => (
-						<option key={t} value={t}>
-							{QTYPE_LABEL[t]}
+				<span aria-hidden className="grid size-7 place-items-center rounded-full bg-base-200 text-sm font-semibold tabular-nums">
+					{n}
+				</span>
+				<select className="select select-sm w-auto" value={q.type} onChange={e => setType(e.target.value as QType)} aria-label={t("questionType")}>
+					{QTYPES.map(type => (
+						<option key={type} value={type}>
+							{qtypeLabel(type)}
 						</option>
 					))}
 				</select>
 				<label className="input input-sm w-24">
-					<input type="number" min={0} step={0.5} value={q.points} onChange={e => onChange({ points: Number(e.target.value) })} aria-label="配分" />
-					<span className="text-xs opacity-60">分</span>
+					<input type="number" min={0} step={0.5} value={q.points} onChange={e => onChange({ points: Number(e.target.value) })} aria-label={t("points")} />
+					<span className="text-xs opacity-75">{t("pointsUnit")}</span>
 				</label>
-				<input className="input input-sm min-w-0 grow" placeholder="題目名稱 / 能力指標（選填）" value={q.name} onChange={e => onChange({ name: e.target.value })} />
+				<input className="input input-sm min-w-0 grow" placeholder={t("questionName")} aria-label={t("questionName")} value={q.name} onChange={e => onChange({ name: e.target.value })} />
 				<div className="ml-auto flex">
-					<button className="btn btn-ghost btn-xs btn-square" disabled={index === 0} onClick={() => onMove(-1)} aria-label="上移">
+					<button className="btn btn-ghost btn-xs btn-square" disabled={index === 0} onClick={() => onMove(-1)} aria-label={t("moveUp", n)}>
 						<ArrowUpIcon size={14} />
 					</button>
-					<button className="btn btn-ghost btn-xs btn-square" disabled={index === count - 1} onClick={() => onMove(1)} aria-label="下移">
+					<button className="btn btn-ghost btn-xs btn-square" disabled={index === count - 1} onClick={() => onMove(1)} aria-label={t("moveDown", n)}>
 						<ArrowDownIcon size={14} />
 					</button>
-					<button className="btn btn-ghost btn-xs btn-square" onClick={onRemove} aria-label="刪除這題">
+					<button className="btn btn-ghost btn-xs btn-square" onClick={onRemove} aria-label={t("removeQuestion", n)}>
 						<TrashIcon size={14} />
 					</button>
 				</div>
 			</div>
 			<div className="mb-1 flex justify-end">
 				<button className="btn btn-ghost btn-xs" onClick={() => setPreview(p => !p)}>
-					{preview ? "編輯" : "預覽"}
+					{preview ? t("edit") : t("preview")}
 				</button>
 			</div>
 			{preview ? (
-				<div className="prose-e3 min-h-20 rounded-lg bg-base-200 p-3" dangerouslySetInnerHTML={{ __html: cleanHtml(markdownToHtml(q.text || "（空白）")) }} />
+				<div className="prose-e3 min-h-20 rounded-lg bg-base-200 p-3" dangerouslySetInnerHTML={{ __html: cleanHtml(markdownToHtml(q.text || t("empty"))) }} />
 			) : (
-				<textarea className="textarea min-h-20 w-full font-mono text-sm" placeholder="題目（支援 Markdown 與 $數學式$）" value={q.text} onChange={e => onChange({ text: e.target.value })} />
+				<textarea
+					className="textarea min-h-20 w-full font-mono text-sm"
+					placeholder={t("questionPlaceholder")}
+					aria-label={t("questionText")}
+					value={q.text}
+					onChange={e => onChange({ text: e.target.value })}
+				/>
 			)}
 
 			{(q.type === "single" || q.type === "multi") && (
-				<ul className="mt-3 space-y-2">
-					{q.choices.map((c, i) => (
-						<li key={i} className="flex items-center gap-2">
-							<input
-								type={q.type === "single" ? "radio" : "checkbox"}
-								name={`correct-${q.id}`}
-								className={q.type === "single" ? "radio radio-sm radio-success" : "checkbox checkbox-sm checkbox-success"}
-								checked={c.correct}
-								onChange={e => onChange({ choices: q.choices.map((x, j) => ({ ...x, correct: q.type === "single" ? j === i : j === i ? e.target.checked : x.correct })) })}
-								aria-label={`選項 ${String.fromCharCode(65 + i)} 是正確答案`}
-							/>
-							<span className="w-4 text-sm text-base-content/50">{String.fromCharCode(65 + i)}</span>
-							<input
-								className="input input-sm grow"
-								value={c.text}
-								placeholder="選項內容"
-								onChange={e => onChange({ choices: q.choices.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })}
-							/>
-							<button className="btn btn-ghost btn-xs btn-square" onClick={() => onChange({ choices: q.choices.filter((_, j) => j !== i) })} aria-label="刪除選項">
-								<TrashIcon size={13} />
+				<fieldset className="mt-3 min-w-0">
+					<legend className="sr-only">{t("choicesLegend")}</legend>
+					<ul className="space-y-2">
+						{q.choices.map((c, i) => (
+							<li key={i} className="flex items-center gap-2">
+								<input
+									type={q.type === "single" ? "radio" : "checkbox"}
+									name={`correct-${q.id}`}
+									className={q.type === "single" ? "radio radio-sm radio-success" : "checkbox checkbox-sm checkbox-success"}
+									checked={c.correct}
+									onChange={e => onChange({ choices: q.choices.map((x, j) => ({ ...x, correct: q.type === "single" ? j === i : j === i ? e.target.checked : x.correct })) })}
+									aria-label={t("optionCorrect", letter(i))}
+								/>
+								<span aria-hidden className="w-4 text-sm text-base-content/65">
+									{letter(i)}
+								</span>
+								<input
+									className="input input-sm min-w-0 grow"
+									value={c.text}
+									placeholder={t("optionPlaceholder")}
+									aria-label={t("optionN", letter(i))}
+									onChange={e => onChange({ choices: q.choices.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })}
+								/>
+								<button className="btn btn-ghost btn-xs btn-square" onClick={() => onChange({ choices: q.choices.filter((_, j) => j !== i) })} aria-label={t("removeOption", letter(i))}>
+									<TrashIcon size={13} />
+								</button>
+							</li>
+						))}
+						<li>
+							<button className="btn btn-ghost btn-xs" onClick={() => onChange({ choices: [...q.choices, { text: "", correct: false }] })}>
+								<PlusIcon size={13} />
+								{t("addOption")}
 							</button>
 						</li>
-					))}
-					<li>
-						<button className="btn btn-ghost btn-xs" onClick={() => onChange({ choices: [...q.choices, { text: "", correct: false }] })}>
-							<PlusIcon size={13} />
-							加選項
-						</button>
-					</li>
-				</ul>
+					</ul>
+				</fieldset>
 			)}
 			{q.type === "truefalse" && (
-				<div className="mt-3 join">
-					<button className={`btn join-item btn-sm ${q.truth ? "btn-success" : ""}`} onClick={() => onChange({ truth: true })}>
-						正確答案：是
-					</button>
-					<button className={`btn join-item btn-sm ${!q.truth ? "btn-success" : ""}`} onClick={() => onChange({ truth: false })}>
-						正確答案：否
-					</button>
-				</div>
+				<fieldset className="mt-3">
+					<legend className="sr-only">{t("correctAnswer")}</legend>
+					<div className="join">
+						<button className={`btn join-item btn-sm ${q.truth ? "btn-success" : ""}`} aria-pressed={!!q.truth} onClick={() => onChange({ truth: true })}>
+							{t("answerTrue")}
+						</button>
+						<button className={`btn join-item btn-sm ${!q.truth ? "btn-success" : ""}`} aria-pressed={!q.truth} onClick={() => onChange({ truth: false })}>
+							{t("answerFalse")}
+						</button>
+					</div>
+				</fieldset>
 			)}
 			{(q.type === "short" || q.type === "numerical") && (
-				<div className="mt-3 flex flex-wrap items-center gap-2">
+				<fieldset className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
+					<legend className="sr-only">{t("answersLegend")}</legend>
 					{q.answers.map((a, i) => (
 						<input
 							key={i}
 							className="input input-sm w-40"
-							placeholder={q.type === "numerical" ? "正確數值" : "可接受的答案"}
+							placeholder={q.type === "numerical" ? t("correctValue") : t("acceptedAnswer")}
+							aria-label={q.type === "numerical" ? t("correctValue") : t("acceptedAnswerN", i + 1)}
+							aria-invalid={q.type === "numerical" && !!a.trim() && Number.isNaN(Number(a)) ? true : undefined}
+							aria-describedby={q.type === "numerical" && !!a.trim() && Number.isNaN(Number(a)) ? `${uid}-issues` : undefined}
 							value={a}
 							inputMode={q.type === "numerical" ? "decimal" : undefined}
 							onChange={e => onChange({ answers: q.answers.map((x, j) => (j === i ? e.target.value : x)) })}
@@ -264,19 +315,19 @@ function QuestionCard({
 					{q.type === "short" && (
 						<button className="btn btn-ghost btn-xs" onClick={() => onChange({ answers: [...q.answers, ""] })}>
 							<PlusIcon size={13} />
-							另一種寫法
+							{t("anotherAnswer")}
 						</button>
 					)}
 					{q.type === "numerical" && (
 						<label className="input input-sm w-40">
-							<span className="text-xs opacity-60">誤差 ±</span>
+							<span className="text-xs opacity-75">{t("tolerance")}</span>
 							<input type="number" min={0} step="any" value={q.tolerance ?? 0} onChange={e => onChange({ tolerance: Number(e.target.value) })} />
 						</label>
 					)}
-				</div>
+				</fieldset>
 			)}
-			{q.type === "essay" && <p className="mt-3 text-xs text-base-content/50">學生用文字編輯器作答，交卷後由老師或助教在 E3 批改。</p>}
-		</section>
+			{q.type === "essay" && <p className="mt-3 text-xs text-base-content/65">{t("essayHint")}</p>}
+		</fieldset>
 	);
 }
 
@@ -290,20 +341,34 @@ function PasteDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => v
 	}, [open]);
 	const parsed = fromSpreadsheet(text);
 	return (
-		<dialog ref={ref} className="modal modal-bottom sm:modal-middle" onClose={onClose}>
+		<dialog ref={ref} className="modal modal-bottom sm:modal-middle" onClose={onClose} aria-labelledby="paste-title">
 			<div className="modal-box max-w-2xl">
-				<h3 className="text-lg font-semibold">從試算表貼上</h3>
-				<p className="mt-1 text-sm text-base-content/60">在 Excel 或 Google 試算表選取題目範圍、複製、貼在下面。每列一題：題目、選項 A、選項 B…、最後一欄是答案（A、AC、O/X、數字或文字）。</p>
+				<h2 id="paste-title" className="text-lg font-semibold">
+					{t("pasteFromSheet")}
+				</h2>
+				<p id="paste-help" className="mt-1 text-sm text-base-content/65">
+					{t("pasteHelp")}
+				</p>
 				<textarea
 					className="textarea mt-3 h-48 w-full font-mono text-xs"
 					value={text}
 					onChange={e => setText(e.target.value)}
-					placeholder={"1+1=?\t1\t2\t3\t4\tB\n地球是圓的\tO\n圓周率到小數兩位\t3.14"}
+					aria-label={t("pasteLabel")}
+					aria-describedby="paste-help"
+					placeholder={t("pastePlaceholder")}
 				/>
-				<p className="mt-2 text-sm">{parsed.length ? `讀到 ${parsed.length} 題：${parsed.map(q => QTYPE_LABEL[q.type]).join("、")}` : "還沒有內容"}</p>
+				<p className="mt-2 text-sm" role="status">
+					{parsed.length
+						? t(
+								"pasteRead",
+								parsed.length,
+								parsed.map(q => qtypeLabel(q.type))
+							)
+						: t("pasteEmpty")}
+				</p>
 				<div className="modal-action">
 					<button className="btn btn-ghost" onClick={onClose}>
-						取消
+						{tc("cancel")}
 					</button>
 					<button
 						className="btn btn-primary"
@@ -314,12 +379,12 @@ function PasteDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => v
 							onClose();
 						}}
 					>
-						加入 {parsed.length} 題
+						{t("pasteAdd", parsed.length)}
 					</button>
 				</div>
 			</div>
 			<form method="dialog" className="modal-backdrop">
-				<button>close</button>
+				<button>{tc("close")}</button>
 			</form>
 		</dialog>
 	);

@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { usePrefs } from "@/features/preferences/store";
 import { useTeaching } from "./api";
+import { t } from "./grading-messages";
 import { useGradingProgress } from "./TeachTab";
 
 /** Dashboard card for teachers and TAs: assignments with submissions waiting for a grade. */
@@ -31,7 +32,7 @@ export function GradingQueue() {
 			<SectionTitle>
 				<span className="flex items-center gap-2">
 					<ChalkboardTeacherIcon size={18} weight="duotone" className="text-primary" />
-					待批改
+					{t("queueTitle")}
 				</span>
 			</SectionTitle>
 			<ul className="-mx-1">
@@ -51,7 +52,7 @@ export function GradingQueue() {
 								</span>
 								<span className="shrink-0 text-right">
 									<span className="block text-lg font-semibold text-warning tabular-nums">{p.needsGrading}</span>
-									<span className="text-[0.7rem] text-base-content/50">份待評</span>
+									<span className="text-[0.7rem] text-base-content/65">{t("toGrade")}</span>
 								</span>
 							</Link>
 						</li>

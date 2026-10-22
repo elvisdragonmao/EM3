@@ -1,4 +1,5 @@
 import { markdownToHtml } from "@/shared/editor/markdown";
+import { t } from "./messages";
 
 // Questions authored in EM3 export to Moodle XML, which E3's question bank
 // imports (題庫維護 → 匯入). XML over GIFT because GIFT's escaping rules clash
@@ -6,14 +7,10 @@ import { markdownToHtml } from "@/shared/editor/markdown";
 
 export type QType = "single" | "multi" | "truefalse" | "short" | "numerical" | "essay";
 
-export const QTYPE_LABEL: Record<QType, string> = {
-	single: "單選",
-	multi: "複選",
-	truefalse: "是非",
-	short: "簡答（自動比對）",
-	numerical: "數值",
-	essay: "申論（人工批改）"
-};
+export const QTYPES: readonly QType[] = ["single", "multi", "truefalse", "short", "numerical", "essay"];
+
+/** UI label for a question type, in the current language. */
+export const qtypeLabel = (type: QType) => t(`qt_${type}`);
 
 export interface Choice {
 	text: string;
@@ -65,13 +62,13 @@ const esc = (s: string) => s.replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;"
 
 export function problems(q: Question, index: number): string[] {
 	const out: string[] = [];
-	const n = `第 ${index + 1} 題`;
-	if (!q.text.trim()) out.push(`${n}沒有題目`);
-	if ((q.type === "single" || q.type === "multi") && q.choices.filter(c => c.text.trim()).length < 2) out.push(`${n}至少要兩個選項`);
-	if ((q.type === "single" || q.type === "multi") && !q.choices.some(c => c.correct && c.text.trim())) out.push(`${n}沒有標正確答案`);
-	if (q.type === "multi" && q.choices.filter(c => c.correct).length > 10) out.push(`${n}正確選項太多`);
-	if ((q.type === "short" || q.type === "numerical") && !q.answers.some(a => a.trim())) out.push(`${n}沒有答案`);
-	if (q.type === "numerical" && q.answers.some(a => a.trim() && Number.isNaN(Number(a)))) out.push(`${n}的答案不是數字`);
+	const n = t("questionN", index + 1);
+	if (!q.text.trim()) out.push(t("pNoText", n));
+	if ((q.type === "single" || q.type === "multi") && q.choices.filter(c => c.text.trim()).length < 2) out.push(t("pTwoChoices", n));
+	if ((q.type === "single" || q.type === "multi") && !q.choices.some(c => c.correct && c.text.trim())) out.push(t("pNoCorrect", n));
+	if (q.type === "multi" && q.choices.filter(c => c.correct).length > 10) out.push(t("pTooMany", n));
+	if ((q.type === "short" || q.type === "numerical") && !q.answers.some(a => a.trim())) out.push(t("pNoAnswer", n));
+	if (q.type === "numerical" && q.answers.some(a => a.trim() && Number.isNaN(Number(a)))) out.push(t("pNotNumber", n));
 	return out;
 }
 
@@ -167,6 +164,7 @@ export function fromSpreadsheet(tsv: string): Question[] {
 			q.choices = options.map((o, i) => ({ text: o, correct: answer.includes(String.fromCharCode(65 + i)) }));
 			return [q];
 		}
+		// Answer spellings teachers type in their sheets, not UI text.
 		if (["O", "X", "T", "F", "TRUE", "FALSE", "是", "否", "對", "錯"].includes(answer) && !options.length) {
 			const q = newQuestion("truefalse");
 			q.text = text;

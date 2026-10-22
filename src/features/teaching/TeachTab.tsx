@@ -1,5 +1,6 @@
 import { assignRules, useAssignments } from "@/features/assignments/api";
 import type { ParsedCourse } from "@/features/courses/parse";
+import { tc } from "@/i18n/common";
 import { callMany } from "@/lib/moodle/client";
 import { e3Link } from "@/lib/moodle/files";
 import type { Assignment } from "@/lib/moodle/types";
@@ -22,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import type { Participant } from "./api";
+import { t } from "./messages";
 
 export interface Progress {
 	assignment: Assignment;
@@ -71,12 +73,12 @@ export function useGradingProgress(assignments: Assignment[]) {
 export function setupWarnings(a: Assignment): string[] {
 	const out: string[] = [];
 	const rules = assignRules(a);
-	if (!a.nosubmissions && !rules.fileEnabled && !rules.textEnabled) out.push("沒有開啟任何繳交方式，學生無法繳交");
+	if (!a.nosubmissions && !rules.fileEnabled && !rules.textEnabled) out.push(t("warnNoSubmission"));
 	if (a.duedate) {
 		const d = new Date(a.duedate * 1000);
-		if (d.getHours() === 0 && d.getMinutes() === 0) out.push("截止時間是 00:00，學生常誤以為是當天晚上");
-	} else if (!a.nosubmissions) out.push("沒有設定截止時間");
-	if (a.cutoffdate && a.duedate && a.cutoffdate < a.duedate) out.push("最晚補交時間早於截止時間");
+		if (d.getHours() === 0 && d.getMinutes() === 0) out.push(t("warnMidnight"));
+	} else if (!a.nosubmissions) out.push(t("warnNoDue"));
+	if (a.cutoffdate && a.duedate && a.cutoffdate < a.duedate) out.push(t("warnCutoff"));
 	return out;
 }
 
@@ -87,27 +89,27 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 	const id = String(course.id);
 
 	const inEm3 = [
-		{ to: "/courses/$courseId/announce", label: "發公告", desc: "Markdown 或按鈕排版，發布前先預覽", icon: MegaphoneIcon },
-		{ to: "/courses/$courseId/write", label: "寫教材", desc: "寫好複製，貼進 E3 的表單", icon: NotePencilIcon },
-		{ to: "/courses/$courseId/quiz-builder", label: "小考出題", desc: "打題目、匯出 Moodle XML 匯入題庫", icon: ExamIcon }
+		{ to: "/courses/$courseId/announce", label: t("announce"), desc: t("announceDesc"), icon: MegaphoneIcon },
+		{ to: "/courses/$courseId/write", label: t("write"), desc: t("writeDesc"), icon: NotePencilIcon },
+		{ to: "/courses/$courseId/quiz-builder", label: t("quizBuilder"), desc: t("quizBuilderDesc"), icon: ExamIcon }
 	] as const;
 	const inE3 = [
-		{ href: `/course/modedit.php?add=resource&course=${id}&section=0&return=0`, label: "上傳檔案", icon: FilePlusIcon },
-		{ href: `/course/modedit.php?add=assign&course=${id}&section=0&return=0`, label: "新增作業", icon: ListChecksIcon },
-		{ href: `/course/modedit.php?add=quiz&course=${id}&section=0&return=0`, label: "新增小考", icon: ExamIcon },
-		{ href: `/grade/report/grader/index.php?id=${id}`, label: "成績簿", icon: TableIcon },
-		{ href: `/user/index.php?id=${id}`, label: "成員", icon: UsersThreeIcon },
-		{ href: `/course/view.php?id=${id}`, label: "編輯課程頁（刪除、隱藏、排序）", icon: ChalkboardTeacherIcon }
+		{ href: `/course/modedit.php?add=resource&course=${id}&section=0&return=0`, label: t("uploadFile"), icon: FilePlusIcon },
+		{ href: `/course/modedit.php?add=assign&course=${id}&section=0&return=0`, label: t("newAssignment"), icon: ListChecksIcon },
+		{ href: `/course/modedit.php?add=quiz&course=${id}&section=0&return=0`, label: t("newQuiz"), icon: ExamIcon },
+		{ href: `/grade/report/grader/index.php?id=${id}`, label: t("gradebook"), icon: TableIcon },
+		{ href: `/user/index.php?id=${id}`, label: t("participants"), icon: UsersThreeIcon },
+		{ href: `/course/view.php?id=${id}`, label: t("editCoursePage"), icon: ChalkboardTeacherIcon }
 	];
 
 	return (
 		<div className="space-y-8">
 			<section>
-				<h3 className="mb-3 text-sm font-semibold text-base-content/70">作業評分</h3>
+				<h2 className="mb-3 text-sm font-semibold text-base-content/70">{t("gradingHeading")}</h2>
 				{assignments.isPending ? (
 					<Lines n={3} />
 				) : !assignments.data?.length ? (
-					<Empty title="這門課沒有作業" />
+					<Empty title={t("noAssignments")} />
 				) : (
 					<ul className="card-quiet divide-y divide-base-content/[0.06] overflow-hidden">
 						{(assignments.data ?? []).map(a => {
@@ -123,7 +125,7 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 									>
 										<span className="min-w-0 grow">
 											<span className="block truncate font-medium">{a.name}</span>
-											<span className="mt-0.5 block text-xs text-base-content/55">{a.duedate ? <Due ts={a.duedate} /> : "沒有截止時間"}</span>
+											<span className="mt-0.5 block text-xs text-base-content/65">{a.duedate ? <Due ts={a.duedate} /> : t("noDueDate")}</span>
 											{warnings.map(w => (
 												<span key={w} className="mt-1 flex items-center gap-1 text-xs text-warning">
 													<WarningIcon size={12} />
@@ -134,21 +136,29 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 										{p ? (
 											<span className="flex shrink-0 items-center gap-4 text-right text-xs tabular-nums">
 												<span>
-													<span className="block text-base font-semibold">
-														{p.submitted}
-														<span className="text-xs font-normal text-base-content/40">/{p.total}</span>
+													<span aria-hidden>
+														<span className="block text-base font-semibold">
+															{p.submitted}
+															<span className="text-xs font-normal text-base-content/65">/{p.total}</span>
+														</span>
+														{t("submittedShort")}
 													</span>
-													已繳
+													<span className="sr-only">{t("submittedOf", p.submitted, p.total)}</span>
 												</span>
-												<span className={p.needsGrading ? "text-warning" : "text-base-content/40"}>
-													<span className="block text-base font-semibold">{p.needsGrading}</span>
-													待評分
+												<span className={p.needsGrading ? "text-warning" : "text-base-content/65"}>
+													<span aria-hidden>
+														<span className="block text-base font-semibold">{p.needsGrading}</span>
+														{t("toGradeShort")}
+													</span>
+													<span className="sr-only">{t("toGrade", p.needsGrading)}</span>
 												</span>
 											</span>
 										) : (
-											<span className="skeleton h-8 w-20" />
+											<span className="skeleton h-8 w-20">
+												<span className="sr-only">{t("loadingProgress")}</span>
+											</span>
 										)}
-										<CaretRightIcon size={16} className="shrink-0 text-base-content/30" />
+										<CaretRightIcon size={16} className="shrink-0 text-base-content/65" />
 									</Link>
 								</li>
 							);
@@ -158,14 +168,14 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 			</section>
 
 			<section>
-				<h3 className="mb-3 text-sm font-semibold text-base-content/70">在 EM3 做</h3>
+				<h2 className="mb-3 text-sm font-semibold text-base-content/70">{t("inEm3Heading")}</h2>
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 					{inEm3.map(x => (
 						<Link key={x.to} to={x.to} params={{ courseId: id }} className="card-quiet flex items-start gap-3 p-4 transition hover:-translate-y-0.5">
 							<x.icon size={24} weight="duotone" className="shrink-0 text-primary" />
 							<span>
 								<span className="block font-medium">{x.label}</span>
-								<span className="text-xs text-base-content/55">{x.desc}</span>
+								<span className="text-xs text-base-content/65">{x.desc}</span>
 							</span>
 						</Link>
 					))}
@@ -173,15 +183,18 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 			</section>
 
 			<section>
-				<h3 className="mb-1 text-sm font-semibold text-base-content/70">到 E3 做</h3>
-				<p className="mb-3 text-xs text-base-content/50">E3 沒有開放這些操作的 API，會在新分頁打開 E3 對應的頁面。</p>
+				<h2 className="mb-1 text-sm font-semibold text-base-content/70">{t("inE3Heading")}</h2>
+				<p className="mb-3 text-xs text-base-content/65">{t("inE3Desc")}</p>
 				<ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
 					{inE3.map(x => (
 						<li key={x.href}>
 							<a href={e3Link(x.href)} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-base-content/[0.04]">
-								<x.icon size={18} className="shrink-0 text-base-content/55" />
-								<span className="grow">{x.label}</span>
-								<ArrowSquareOutIcon size={14} className="text-base-content/35" />
+								<x.icon size={18} className="shrink-0 text-base-content/65" />
+								<span className="grow">
+									{x.label}
+									<span className="sr-only">{tc("openInNewTab")}</span>
+								</span>
+								<ArrowSquareOutIcon size={14} className="text-base-content/65" />
 							</a>
 						</li>
 					))}

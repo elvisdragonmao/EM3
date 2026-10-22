@@ -8,6 +8,8 @@ import { fullDateTime } from "@/lib/time/relative";
 import { MarkdownEditor, markdownToHtml } from "@/shared/editor/MarkdownEditor";
 import { MOD_LABEL, useHotkeys } from "@/shared/keyboard/hotkeys";
 import { usePrefs } from "@/features/preferences/store";
+import { tc } from "@/i18n/common";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago, Due } from "@/shared/ui/Time";
@@ -25,7 +27,7 @@ import {
 } from "@phosphor-icons/react";
 import { useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	displayName,
 	feedbackComment,
@@ -42,14 +44,10 @@ import {
 	useStudentStatus
 } from "./api";
 import { BulkDialogs, type BulkKind } from "./BulkDialogs";
+import { t } from "./grading-messages";
 
 type Filter = "all" | "todo" | "graded" | "missing";
-const FILTERS: { key: Filter; label: string }[] = [
-	{ key: "todo", label: "待評分" },
-	{ key: "graded", label: "已評分" },
-	{ key: "missing", label: "未繳交" },
-	{ key: "all", label: "全部" }
-];
+const FILTERS: Filter[] = ["todo", "graded", "missing", "all"];
 
 export function GradingPage() {
 	const { courseId, cmid } = useParams({ from: "/app/courses/$courseId/assign/$cmid/grade" });
@@ -67,6 +65,7 @@ export function GradingPage() {
 	const [filter, setFilter] = useState<Filter>("todo");
 	const [q, setQ] = useState("");
 	const [bulk, setBulk] = useState<BulkKind | null>(null);
+	useDocumentTitle(a ? t("docTitle", a.name) : undefined);
 
 	const isGraded = (p: Participant) => {
 		const g = grades.data?.[p.id];
@@ -77,7 +76,7 @@ export function GradingPage() {
 		const list = (participants.data ?? []).filter(p => !p.suspended || p.submitted);
 		const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
 		return list
-			.filter(p => terms.every(t => `${displayName(p.fullname)} ${p.email ?? ""} ${sids[p.id] ?? ""}`.toLowerCase().includes(t)))
+			.filter(p => terms.every(term => `${displayName(p.fullname)} ${p.email ?? ""} ${sids[p.id] ?? ""}`.toLowerCase().includes(term)))
 			.filter(p => (filter === "all" ? true : filter === "missing" ? !p.submitted : filter === "graded" ? isGraded(p) : p.submitted && !isGraded(p)))
 			.sort((x, y) => displayName(x.fullname).localeCompare(displayName(y.fullname), "zh-Hant"));
 	}, [participants.data, grades.data, filter, q, sids]);
@@ -108,75 +107,87 @@ export function GradingPage() {
 
 	if (assignments.error) return <ErrorNote error={assignments.error} retry={assignments.refetch} />;
 	if (assignments.isPending) return <Lines n={6} />;
-	if (!a) return <p className="py-20 text-center text-base-content/60">找不到這份作業。</p>;
+	if (!a) return <p className="py-20 text-center text-base-content/65">{t("notFound")}</p>;
 	const max = a.grade;
 
 	return (
 		<div className="mx-auto max-w-7xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-3 -ml-2">
+			<button type="button" onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-3 -ml-2">
 				<ArrowLeftIcon size={16} />
-				返回
+				{t("back")}
 			</button>
 			<header className="mb-5 flex flex-wrap items-end gap-4">
 				<div className="min-w-0 grow">
 					{course && <CourseTag course={course} link />}
 					<h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{a.name}</h1>
-					<p className="mt-1 text-sm text-base-content/55">
+					<p className="mt-1 text-sm text-base-content/65">
 						{a.duedate ? (
 							<>
-								截止 <Due ts={a.duedate} /> ·{" "}
+								{t("due")} <Due ts={a.duedate} /> ·{" "}
 							</>
 						) : null}
-						滿分 {max > 0 ? max : "量尺評分"}
+						{max > 0 ? t("outOf", max) : t("rubricScale")}
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
-					<button className="btn btn-sm" onClick={() => setBulk("download")}>
+					<button type="button" className="btn btn-sm" onClick={() => setBulk("download")}>
 						<DownloadSimpleIcon size={16} />
-						下載全部
+						{t("downloadAll")}
 					</button>
-					<button className="btn btn-sm" onClick={() => setBulk("csv")}>
+					<button type="button" className="btn btn-sm" onClick={() => setBulk("csv")}>
 						<FileCsvIcon size={16} />
-						匯入成績 CSV
+						{t("importCsv")}
 					</button>
 					{feedbackPlugins(a).files && (
-						<button className="btn btn-sm" onClick={() => setBulk("files")}>
+						<button type="button" className="btn btn-sm" onClick={() => setBulk("files")}>
 							<UploadSimpleIcon size={16} />
-							上傳批改檔
+							{t("uploadFeedback")}
 						</button>
 					)}
-					<button className="btn btn-sm" onClick={() => setBulk("extend")}>
+					<button type="button" className="btn btn-sm" onClick={() => setBulk("extend")}>
 						<HourglassIcon size={16} />
-						延長期限
+						{t("extend")}
 					</button>
 					<a className="btn btn-ghost btn-sm" href={e3Link(`/mod/assign/view.php?id=${a.cmid}&action=grading`)} target="_blank" rel="noreferrer">
 						<ArrowSquareOutIcon size={16} />
 						E3
+						<span className="sr-only">
+							{t("e3Grading")}
+							{tc("openInNewTab")}
+						</span>
 					</a>
 				</div>
 			</header>
 
 			<div className="mb-5 grid grid-cols-3 gap-3 sm:max-w-xl">
-				<Stat label="已繳交" value={counts.submitted} total={all.length} />
-				<Stat label="已評分" value={counts.graded} total={all.length} />
-				<Stat label="待評分" value={counts.todo} tone={counts.todo ? "text-warning" : undefined} />
+				<Stat label={t("submitted")} value={counts.submitted} total={all.length} />
+				<Stat label={t("graded")} value={counts.graded} total={all.length} />
+				<Stat label={t("todo")} value={counts.todo} tone={counts.todo ? "text-warning" : undefined} />
 			</div>
 
-			{max <= 0 && <div className="alert alert-soft alert-warning mb-5 text-sm">這份作業用量尺（等第）評分，EM3 目前只支援分數制。可以在這裡看繳交內容，評分請到 E3。</div>}
+			{max <= 0 && (
+				<div role="note" className="alert alert-soft alert-warning mb-5 text-sm">
+					{t("rubricWarning")}
+				</div>
+			)}
 
 			<div className="grid grid-cols-1 gap-5 lg:grid-cols-[18rem_1fr]">
-				<aside className={`min-w-0 ${current ? "hidden lg:block" : ""}`}>
+				<aside className={`min-w-0 ${current ? "hidden lg:block" : ""}`} aria-label={t("studentsLabel")}>
 					<label className="input input-sm mb-2 w-full">
 						<MagnifyingGlassIcon size={15} className="opacity-50" />
-						<input data-search type="search" placeholder="搜尋姓名、學號、email" value={q} onChange={e => setQ(e.target.value)} />
+						<input data-search type="search" aria-label={t("searchLabel")} placeholder={t("searchPlaceholder")} autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
 					</label>
-					<div className="mb-2 flex flex-wrap gap-1" role="tablist" aria-label="篩選學生">
+					<fieldset className="mb-2 flex flex-wrap gap-1">
+						<legend className="sr-only">{t("filterLabel")}</legend>
 						{FILTERS.map(f => (
-							<button key={f.key} role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)} className={`btn btn-xs rounded-full ${filter === f.key ? "btn-neutral" : "btn-ghost"}`}>
-								{f.label}
+							<button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className={`btn btn-xs rounded-full ${filter === f ? "btn-neutral" : "btn-ghost"}`}>
+								{t(f)}
 							</button>
 						))}
-					</div>
+					</fieldset>
+					<p role="status" className="sr-only">
+						{participants.isPending ? "" : people.length ? t("matchCount", people.length) : t("noMatch")}
+					</p>
 					{participants.isPending ? (
 						<Lines n={6} />
 					) : (
@@ -187,38 +198,46 @@ export function GradingPage() {
 								return (
 									<li key={p.id}>
 										<button
+											type="button"
 											data-nav
+											aria-current={current?.id === p.id ? "true" : undefined}
 											onClick={() => pick(p.id)}
 											className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm ${current?.id === p.id ? "bg-primary/[0.07]" : "hover:bg-base-content/[0.03]"}`}
 										>
 											<span className={`size-2 shrink-0 rounded-full ${!p.submitted ? "bg-base-content/15" : graded ? "bg-success" : "bg-warning"}`} />
+											{p.submitted && <span className="sr-only">{graded ? t("graded") : t("todo")}</span>}
 											<span className="min-w-0 grow">
 												<span className="block truncate">{displayName(p.fullname)}</span>
-												<span className="block truncate text-[0.7rem] text-base-content/45">
+												<span className="block truncate text-[0.7rem] text-base-content/65">
 													{sids[p.id]}
-													{isAuditor(p) && " · 旁聽"}
-													{p.suspended && <span className="text-warning"> · 選課已失效</span>}
-													{p.outsideTable && !p.suspended && <span className="text-warning"> · 不在 E3 評分表</span>}
+													{isAuditor(p) && ` · ${t("auditor")}`}
+													{p.suspended && <span className="text-warning"> · {t("suspended")}</span>}
+													{p.outsideTable && !p.suspended && <span className="text-warning"> · {t("outsideTable")}</span>}
 												</span>
 											</span>
 											{graded ? (
-												<span className="text-xs tabular-nums text-base-content/60">{Number(g!.grade)}</span>
+												<span className="text-xs tabular-nums text-base-content/65">{Number(g!.grade)}</span>
 											) : !p.submitted ? (
-												<span className="text-xs text-base-content/40">未繳</span>
+												<span className="text-xs text-base-content/65">{t("missingShort")}</span>
 											) : null}
-											{p.grantedextension && <HourglassIcon size={12} className="text-info" />}
+											{p.grantedextension && (
+												<span title={t("extended")}>
+													<HourglassIcon size={12} className="text-info" />
+													<span className="sr-only">{t("extended")}</span>
+												</span>
+											)}
 										</button>
 									</li>
 								);
 							})}
-							{!people.length && <li className="px-3 py-8 text-center text-sm text-base-content/45">沒有符合的學生</li>}
+							{!people.length && <li className="px-3 py-8 text-center text-sm text-base-content/65">{t("noMatch")}</li>}
 						</ul>
 					)}
-					<p className="mt-2 px-1 text-xs text-base-content/40">J / K 切換學生</p>
+					<p className="mt-2 px-1 text-xs text-base-content/65">{t("jkHint")}</p>
 				</aside>
 
-				<section className="min-w-0">
-					{current ? <StudentPanel key={current.id} assignmentId={a.id} p={current} max={max} onDone={() => step(1)} onBack={() => pick(undefined)} /> : <Empty title="從左邊選一位學生開始評分" />}
+				<section className="min-w-0" aria-label={current ? displayName(current.fullname) : undefined}>
+					{current ? <StudentPanel key={current.id} assignmentId={a.id} p={current} max={max} onDone={() => step(1)} onBack={() => pick(undefined)} /> : <Empty title={t("pickStudent")} />}
 				</section>
 			</div>
 
@@ -230,10 +249,10 @@ export function GradingPage() {
 function Stat({ label, value, total, tone }: { label: string; value: number; total?: number; tone?: string }) {
 	return (
 		<div className="card-quiet px-4 py-3">
-			<p className="text-xs text-base-content/50">{label}</p>
+			<p className="text-xs text-base-content/65">{label}</p>
 			<p className={`text-2xl font-semibold tabular-nums ${tone ?? ""}`}>
 				{value}
-				{total !== undefined && <span className="text-sm font-normal text-base-content/40"> / {total}</span>}
+				{total !== undefined && <span className="text-sm font-normal text-base-content/65"> / {total}</span>}
 			</p>
 		</div>
 	);
@@ -266,6 +285,12 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 	const [saved, setSaved] = useState(false);
 	const gradeInput = useRef<HTMLInputElement>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
+	const uid = useId();
+	const gradeId = `${uid}-grade`;
+	const maxId = `${uid}-max`;
+	const errId = `${uid}-err`;
+	const feedbackId = `${uid}-feedback`;
+	const filesId = `${uid}-files`;
 
 	useEffect(() => {
 		if (!st || loaded) return;
@@ -309,42 +334,49 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 		<motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_22rem]">
 			<div className="min-w-0 space-y-4">
 				<div className="flex items-center gap-2">
-					<button onClick={onBack} className="btn btn-ghost btn-sm -ml-2 lg:hidden">
+					<button type="button" onClick={onBack} className="btn btn-ghost btn-sm -ml-2 lg:hidden" aria-label={t("backToList")}>
 						<ArrowLeftIcon size={16} />
 					</button>
 					<h2 className="text-xl font-semibold">{displayName(p.fullname)}</h2>
-					{p.submitted ? <span className="badge badge-sm badge-soft badge-success">已繳交</span> : <span className="badge badge-sm badge-soft badge-ghost">未繳交</span>}
+					{p.submitted ? <span className="badge badge-sm badge-soft badge-success">{t("submitted")}</span> : <span className="badge badge-sm badge-soft badge-ghost">{t("missing")}</span>}
 					{sub?.timemodified ? (
-						<span className="text-xs text-base-content/50" title={fullDateTime(sub.timemodified)}>
+						<span className="text-xs text-base-content/65" title={fullDateTime(sub.timemodified)}>
 							<Ago ts={sub.timemodified} />
-							{a?.duedate && sub.timemodified > a.duedate ? <span className="ml-1 text-error">遲交</span> : null}
+							{a?.duedate && sub.timemodified > a.duedate ? <span className="ml-1 text-error">{t("late")}</span> : null}
 						</span>
 					) : null}
 				</div>
 				{text && (
 					<section className="card-quiet p-5">
-						<h3 className="mb-2 text-xs font-semibold text-base-content/50">線上文字</h3>
+						<h3 className="mb-2 text-xs font-semibold text-base-content/65">{t("onlineText")}</h3>
 						<div className="prose-e3" dangerouslySetInnerHTML={{ __html: cleanHtml(linkify(text)) }} />
 					</section>
 				)}
 				{files.length > 0 && (
 					<section className="card-quiet p-4">
-						<h3 className="mb-2 text-xs font-semibold text-base-content/50">繳交的檔案</h3>
+						<h3 className="mb-2 text-xs font-semibold text-base-content/65">{t("submittedFiles")}</h3>
 						<FileList files={files} />
 					</section>
 				)}
-				{!text && !files.length && <Empty title={p.submitted ? "這份繳交沒有內容" : "還沒有繳交"} />}
+				{!text && !files.length && <Empty title={p.submitted ? t("emptySubmission") : t("notYet")} />}
 			</div>
 
 			<aside className="card-quiet space-y-4 self-start p-4 xl:sticky xl:top-6">
 				{max > 0 && (
-					<label className="block">
-						<span className="mb-1 block text-xs font-semibold text-base-content/50">分數（滿分 {max}）</span>
+					<div>
+						<p className="mb-1 text-xs font-semibold text-base-content/65">
+							<label htmlFor={gradeId}>{t("score")}</label>
+							<span id={maxId}>{t("outOfParen", max)}</span>
+						</p>
 						<input
 							ref={gradeInput}
+							id={gradeId}
 							className={`input input-lg w-full tabular-nums ${invalid ? "input-error" : ""}`}
 							inputMode="decimal"
-							placeholder="未評分"
+							autoComplete="off"
+							aria-describedby={invalid ? `${maxId} ${errId}` : maxId}
+							aria-invalid={invalid || undefined}
+							placeholder={t("ungraded")}
 							value={grade}
 							onChange={e => {
 								setGrade(e.target.value);
@@ -352,12 +384,16 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 							}}
 							onKeyDown={e => e.key === "Enter" && !e.metaKey && !e.ctrlKey && void submit(true)}
 						/>
-						{invalid && <span className="mt-1 block text-xs text-error">請輸入 0–{max} 的數字</span>}
-					</label>
+						<p id={errId} role="alert" className={invalid ? "mt-1 text-xs text-error" : "sr-only"}>
+							{invalid ? t("scoreRange", max) : ""}
+						</p>
+					</div>
 				)}
 				{plugins.comments && (
-					<div>
-						<span className="mb-1 block text-xs font-semibold text-base-content/50">評語（學生看得到）</span>
+					<div role="group" aria-labelledby={feedbackId}>
+						<p id={feedbackId} className="mb-1 text-xs font-semibold text-base-content/65">
+							{t("feedbackHeading")}
+						</p>
 						<MarkdownEditor
 							value={comment}
 							onChange={v => {
@@ -366,38 +402,40 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 								setCommentDirty(true);
 								setSaved(false);
 							}}
-							placeholder="寫給學生的回饋…"
+							placeholder={t("feedbackPlaceholder")}
 							minHeight="7rem"
-							label="評語"
+							label={t("feedback")}
 							version={version}
 						/>
 						<Snippets
 							items={snippets}
-							onInsert={t => {
-								setComment(c => (c.trim() ? `${c.trimEnd()}\n\n${t}` : t));
+							onInsert={snippet => {
+								setComment(c => (c.trim() ? `${c.trimEnd()}\n\n${snippet}` : snippet));
 								setCommentDirty(true);
 								setSaved(false);
 								setVersion(v => v + 1);
 							}}
 							onSave={() => comment.trim() && !snippets.includes(comment.trim()) && setPref("snippets", [...snippets, comment.trim()])}
-							onRemove={t =>
+							onRemove={snippet =>
 								setPref(
 									"snippets",
-									snippets.filter(x => x !== t)
+									snippets.filter(x => x !== snippet)
 								)
 							}
 						/>
 					</div>
 				)}
 				{plugins.files && (
-					<div>
-						<span className="mb-1 block text-xs font-semibold text-base-content/50">回饋檔案</span>
+					<div role="group" aria-labelledby={filesId}>
+						<p id={filesId} className="mb-1 text-xs font-semibold text-base-content/65">
+							{t("feedbackFiles")}
+						</p>
 						<ul className="space-y-1 text-sm">
 							{keep.map(f => (
 								<li key={f.fileurl} className="flex items-center gap-2">
 									<FileIcon ext={fileExt(f.filename)} size={16} />
 									<span className="min-w-0 grow truncate">{f.filename}</span>
-									<button className="btn btn-ghost btn-xs btn-square" onClick={() => setKeep(k => k.filter(x => x !== f))} aria-label={`移除 ${f.filename}`}>
+									<button type="button" className="btn btn-ghost btn-xs btn-square" onClick={() => setKeep(k => k.filter(x => x !== f))} aria-label={t("removeFile", f.filename)}>
 										<TrashIcon size={13} />
 									</button>
 								</li>
@@ -406,34 +444,53 @@ function StudentPanel({ assignmentId, p, max, onDone, onBack }: { assignmentId: 
 								<li key={f.name + f.size} className="flex items-center gap-2 rounded bg-primary/5 px-1">
 									<FileIcon ext={fileExt(f.name)} size={16} />
 									<span className="min-w-0 grow truncate">{f.name}</span>
-									<button className="btn btn-ghost btn-xs btn-square" onClick={() => setAddFiles(x => x.filter(y => y !== f))} aria-label={`移除 ${f.name}`}>
+									<button type="button" className="btn btn-ghost btn-xs btn-square" onClick={() => setAddFiles(x => x.filter(y => y !== f))} aria-label={t("removeFile", f.name)}>
 										<TrashIcon size={13} />
 									</button>
 								</li>
 							))}
 						</ul>
-						<button className="btn btn-ghost btn-sm mt-1 w-full border-dashed border-base-content/15" onClick={() => fileInput.current?.click()}>
+						<button type="button" className="btn btn-ghost btn-sm mt-1 w-full border-dashed border-base-content/15" onClick={() => fileInput.current?.click()}>
 							<CloudArrowUpIcon size={16} />
-							加入批改後的檔案
+							{t("addFeedbackFile")}
 						</button>
 						<input ref={fileInput} type="file" multiple hidden onChange={e => e.target.files && (setAddFiles(x => [...x, ...Array.from(e.target.files!)]), (e.target.value = ""))} />
 					</div>
 				)}
 				<div className="flex flex-col gap-2">
-					<button className="btn btn-primary" disabled={save.isPending || invalid || max <= 0} onClick={() => void submit(true)}>
-						{save.isPending ? <span className="loading loading-spinner loading-sm" /> : "儲存，下一位"}
-						<kbd className="kbd kbd-xs border-primary-content/30 bg-transparent text-primary-content/70">{MOD_LABEL}↵</kbd>
+					<button
+						type="button"
+						className="btn btn-primary"
+						disabled={save.isPending || invalid || max <= 0}
+						onClick={() => void submit(true)}
+						aria-keyshortcuts={MOD_LABEL === "⌘" ? "Meta+Enter" : "Control+Enter"}
+					>
+						{save.isPending ? (
+							<>
+								<span className="loading loading-spinner loading-sm" aria-hidden="true" />
+								<span className="sr-only">{t("saving")}</span>
+							</>
+						) : (
+							t("saveNext")
+						)}
+						<kbd className="kbd kbd-xs border-primary-content/30 bg-transparent text-primary-content/70" aria-hidden="true">
+							{MOD_LABEL}↵
+						</kbd>
 					</button>
-					<button className="btn btn-ghost btn-sm" disabled={save.isPending || invalid || max <= 0} onClick={() => void submit(false)}>
-						只儲存
+					<button type="button" className="btn btn-ghost btn-sm" disabled={save.isPending || invalid || max <= 0} onClick={() => void submit(false)}>
+						{t("saveOnly")}
 					</button>
-					{saved && !save.isPending && (
-						<p className="flex items-center gap-1 text-xs text-success">
-							<CheckCircleIcon size={14} weight="fill" />
-							已儲存到 E3，學生看得到
-						</p>
-					)}
-					{save.error && <p className="text-xs text-error">儲存失敗：{save.error.message}</p>}
+					<p role="status" className={saved && !save.isPending ? "flex items-center gap-1 text-xs text-success" : "sr-only"}>
+						{saved && !save.isPending && (
+							<>
+								<CheckCircleIcon size={14} weight="fill" />
+								{t("savedToE3")}
+							</>
+						)}
+					</p>
+					<p role="alert" className={save.error ? "text-xs text-error" : "sr-only"}>
+						{save.error && t("saveFailed", save.error.message)}
+					</p>
 				</div>
 			</aside>
 		</motion.div>
@@ -445,27 +502,28 @@ function Snippets({ items, onInsert, onSave, onRemove }: { items: string[]; onIn
 	const [editing, setEditing] = useState(false);
 	return (
 		<div className="mt-2">
-			<div className="flex flex-wrap gap-1">
-				{items.map(t => (
-					<span key={t} className="group inline-flex max-w-full items-center">
+			<ul className="flex flex-wrap gap-1" aria-label={t("snippets")}>
+				{items.map(s => (
+					<li key={s} className="group inline-flex max-w-full items-center">
 						<button
 							type="button"
 							className="btn btn-xs max-w-56 justify-start truncate rounded-full font-normal"
-							onClick={() => (editing ? onRemove(t) : onInsert(t))}
-							title={editing ? "移除這句" : t}
+							onClick={() => (editing ? onRemove(s) : onInsert(s))}
+							title={editing ? t("removeSnippet") : s}
+							aria-label={editing ? t("removeSnippetNamed", s) : undefined}
 						>
 							{editing && <TrashIcon size={11} />}
-							<span className="truncate">{t}</span>
+							<span className="truncate">{s}</span>
 						</button>
-					</span>
+					</li>
 				))}
-			</div>
+			</ul>
 			<div className="mt-1 flex gap-2 text-xs">
-				<button type="button" className="link link-hover text-base-content/55" onClick={onSave}>
-					把目前評語存成片語
+				<button type="button" className="link link-hover text-base-content/65" onClick={onSave}>
+					{t("saveSnippet")}
 				</button>
-				<button type="button" className="link link-hover text-base-content/55" onClick={() => setEditing(e => !e)}>
-					{editing ? "完成" : "管理片語"}
+				<button type="button" className="link link-hover text-base-content/65" onClick={() => setEditing(e => !e)}>
+					{editing ? t("done") : t("manageSnippets")}
 				</button>
 			</div>
 		</div>
@@ -479,11 +537,11 @@ function FileList({ files }: { files: InlineFile[] }) {
 				const mf = { key: f.fileurl, name: f.filename, url: f.fileurl, size: f.filesize, mime: f.mimetype, ext: fileExt(f.filename), time: f.timemodified, path: "/" };
 				return (
 					<li key={f.fileurl}>
-						<button onClick={() => openFile(mf)} className="flex w-full items-center gap-3 rounded-xl border hairline bg-base-100 px-3 py-2.5 text-left hover:bg-base-content/[0.03]">
+						<button type="button" onClick={() => openFile(mf)} className="flex w-full items-center gap-3 rounded-xl border hairline bg-base-100 px-3 py-2.5 text-left hover:bg-base-content/[0.03]">
 							<FileIcon ext={mf.ext} size={26} />
 							<span className="min-w-0">
 								<span className="block truncate text-sm font-medium">{f.filename}</span>
-								<span className="text-xs text-base-content/50">{humanSize(f.filesize)}</span>
+								<span className="text-xs text-base-content/65">{humanSize(f.filesize)}</span>
 							</span>
 						</button>
 					</li>
