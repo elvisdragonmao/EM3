@@ -1,3 +1,4 @@
+import { usePrefs } from "@/features/preferences/store";
 import { useEffect, useRef } from "react";
 
 // One tiny hotkey layer for the whole app. Specs look like "mod+k", "mod+/",
@@ -46,6 +47,8 @@ export function useHotkeys(bindings: Binding[], enabled = true) {
 			for (const b of ref.current) {
 				const specs = Array.isArray(b.keys) ? b.keys : [b.keys];
 				if (!specs.some(s => matches(s, e))) continue;
+				// WCAG 2.1.4: single-character shortcuts can be turned off in Settings.
+				if (!usePrefs.getState().singleKeyShortcuts && specs.every(isSingleKey)) continue;
 				if (!b.inInput && isTyping(e.target)) continue;
 				if (!b.inModal && overlayOpen()) continue;
 				e.preventDefault();
@@ -57,6 +60,9 @@ export function useHotkeys(bindings: Binding[], enabled = true) {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [enabled]);
 }
+
+/** A shortcut with no modifier that a stray keystroke or speech input could trigger. */
+const isSingleKey = (spec: string) => spec.length === 1 || /^shift\+.$/.test(spec);
 
 const visible = (el: HTMLElement) => el.offsetParent !== null || el.getClientRects().length > 0;
 
