@@ -2,6 +2,7 @@ import { CloudIcon, DeviceMobileIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { t } from "./messages";
 import { type DataMode, ensureLinked, leaveServer, linkServer, useServer } from "./store";
+import { SyncLine } from "./SyncLine";
 
 /** Settings: which version this device uses, and the server connection's state. */
 export function VersionSettings() {
@@ -65,6 +66,7 @@ export function VersionSettings() {
 					</span>
 				)}
 			</div>
+			{mode === "server" && status === "linked" && <SyncLine />}
 			<p className="text-xs leading-relaxed text-base-content/65">{mode === "server" ? t("serverPrivacy") : t("localMissing")}</p>
 
 			<dialog ref={dialog} className="modal" aria-labelledby="leave-title" aria-describedby="leave-body" onClose={() => setConfirming(false)}>

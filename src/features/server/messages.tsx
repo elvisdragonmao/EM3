@@ -29,7 +29,10 @@ export const t = defineMessages({
 		needsServer: "這個功能需要伺服器版",
 		needsServerBody: "提醒、同步、課表自動帶入和助教協作都要透過 EM3 伺服器。",
 		switchToServer: "改用伺服器版",
-		notLinked: "伺服器版還沒連線，連上之後就能用。"
+		notLinked: "伺服器版還沒連線，連上之後就能用。",
+		syncing: "正在同步設定…",
+		synced: (time: string) => `設定已同步 · ${time}`,
+		syncFailed: "設定同步失敗，這台裝置上的變更會在下次連上時再送出。"
 	},
 	en: {
 		dialogTitle: "Choose a version of EM3",
@@ -65,7 +68,10 @@ export const t = defineMessages({
 		needsServer: "This needs the server version",
 		needsServerBody: "Reminders, sync, automatic timetables and TA collaboration all go through the EM3 server.",
 		switchToServer: "Switch to the server version",
-		notLinked: "The server version isn't connected yet. This works once it is."
+		notLinked: "The server version isn't connected yet. This works once it is.",
+		syncing: "Syncing settings…",
+		synced: (time: string) => `Settings synced · ${time}`,
+		syncFailed: "Couldn't sync settings. Changes on this device are sent the next time it connects."
 	},
 	ja: {
 		dialogTitle: "EM3 のバージョンを選ぶ",
@@ -100,7 +106,10 @@ export const t = defineMessages({
 		needsServer: "この機能にはサーバー版が必要です",
 		needsServerBody: "通知・同期・時間割の自動入力・TA の協力機能はすべて EM3 サーバーを通します。",
 		switchToServer: "サーバー版に切り替える",
-		notLinked: "サーバー版にまだ接続していません。接続すると使えます。"
+		notLinked: "サーバー版にまだ接続していません。接続すると使えます。",
+		syncing: "設定を同期しています…",
+		synced: (time: string) => `設定を同期しました · ${time}`,
+		syncFailed: "設定を同期できませんでした。このデバイスでの変更は次に接続したときに送られます。"
 	},
 	emoji: {
 		dialogTitle: "🖥️❓ / 📱❓",
@@ -130,6 +139,9 @@ export const t = defineMessages({
 		needsServer: "🖥️❗",
 		needsServerBody: "🔔🔄🗓️🤝 → 🖥️",
 		switchToServer: "→ 🖥️",
-		notLinked: "🖥️⏳"
+		notLinked: "🖥️⏳",
+		syncing: "🔄⏳",
+		synced: (time: string) => `🔄✅ · ${time}`,
+		syncFailed: "🔄❌"
 	}
 });

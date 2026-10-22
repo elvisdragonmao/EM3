@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 export const t = defineMessages({
 	"zh-TW": {
 		title: "設定",
-		subtitle: "這裡的設定都只存在這個瀏覽器（localStorage），不會改到 Moodle。",
+		subtitle: "這裡的設定不會改到 Moodle。本機版只存在這個瀏覽器；伺服器版會同步到你的其他裝置。",
 		imported: "已匯入設定",
 		importFailed: (reason?: string) => (reason ? `匯入失敗：${reason}` : "匯入失敗"),
 		account: "帳號",
@@ -62,7 +62,7 @@ export const t = defineMessages({
 	},
 	en: {
 		title: "Settings",
-		subtitle: "These settings live only in this browser (localStorage) and never change anything on Moodle.",
+		subtitle: "These settings never change anything on Moodle. The local version keeps them in this browser; the server version syncs them to your other devices.",
 		imported: "Settings imported",
 		importFailed: (reason?: string) => (reason ? `Import failed: ${reason}` : "Import failed"),
 		account: "Account",
@@ -120,7 +120,7 @@ export const t = defineMessages({
 	},
 	ja: {
 		title: "設定",
-		subtitle: "ここでの設定はこのブラウザ（localStorage）にだけ保存され、Moodle 側は変わりません。",
+		subtitle: "ここでの設定で Moodle 側は変わりません。ローカル版はこのブラウザだけに保存し、サーバー版はほかのデバイスと同期します。",
 		imported: "設定を読み込みました",
 		importFailed: (reason?: string) => (reason ? `読み込みに失敗しました：${reason}` : "読み込みに失敗しました"),
 		account: "アカウント",
@@ -178,7 +178,7 @@ export const t = defineMessages({
 	},
 	emoji: {
 		title: "⚙️",
-		subtitle: "💻🔒 ≠ 🎓",
+		subtitle: "⚙️ ≠ 🎓 · 📱💾 · 🖥️🔄",
 		imported: "📥✅",
 		importFailed: (reason?: string) => (reason ? `📥❌ ${reason}` : "📥❌"),
 		account: "👤",
