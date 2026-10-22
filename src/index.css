@@ -2,6 +2,8 @@
 @plugin "daisyui" {
 	themes: all;
 	logs: false;
+	/* Unused components; their CSS hides text with font-size: 0px, which Taiwan's checker flags (CS2140401C). */
+	exclude: calendar, menu, megamenu;
 }
 
 /* EM3's own theme pair: quiet neutrals, one confident blue, soft radii. */
@@ -22,13 +24,14 @@
 	--color-accent-content: oklch(20% 0.04 200);
 	--color-neutral: oklch(28% 0.012 260);
 	--color-neutral-content: oklch(97% 0.004 260);
-	--color-info: oklch(68% 0.15 235);
+	/* Dark enough for 4.5:1 as text on base-200 and under white content (WCAG 1.4.3). */
+	--color-info: oklch(51% 0.14 235);
 	--color-info-content: oklch(99% 0.01 235);
-	--color-success: oklch(66% 0.17 150);
+	--color-success: oklch(51% 0.15 150);
 	--color-success-content: oklch(99% 0.01 150);
-	--color-warning: oklch(80% 0.16 75);
-	--color-warning-content: oklch(25% 0.05 75);
-	--color-error: oklch(62% 0.22 25);
+	--color-warning: oklch(55% 0.14 65);
+	--color-warning-content: oklch(99% 0.01 65);
+	--color-error: oklch(55% 0.2 25);
 	--color-error-content: oklch(99% 0.01 25);
 	--radius-selector: 1rem;
 	--radius-field: 0.5rem;
@@ -225,4 +228,47 @@
 	outline: none;
 	border-color: color-mix(in oklab, var(--color-primary) 55%, transparent);
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 16%, transparent);
+}
+
+/* Accessibility (WCAG 2.1 AA). Field borders and placeholders need 3:1 and
+   4.5:1 against the page; daisyUI's defaults sit around 1.5:1. */
+.input:not(.input-ghost),
+.select:not(.select-ghost),
+.textarea:not(.textarea-ghost) {
+	--input-color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+.checkbox,
+.radio,
+.toggle {
+	--input-color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+	border-color: var(--input-color);
+}
+::placeholder,
+.input input::placeholder {
+	color: color-mix(in oklab, var(--color-base-content) 60%, transparent) !important;
+	opacity: 1 !important;
+}
+.input:focus,
+.input:focus-within,
+.textarea:focus,
+.select:focus,
+.em3-editor:focus-within {
+	border-color: var(--color-primary);
+}
+
+/* daisyUI draws hints and labels at 60% of the text colour, about 4.4:1 on base-200. */
+.label,
+.fieldset-label,
+.fieldset-legend + .label {
+	color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+/* The 「減少動畫」 setting also stops CSS animations and transitions. */
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+	scroll-behavior: auto !important;
 }
