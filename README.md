@@ -100,13 +100,15 @@ E3 的「教材」其實是資料夾，而大部分資料夾裡只有一份投�
   </tr>
 </table>
 
-### 課表、信件、鍵盤、手機、主題
+### 課表、信件、鍵盤、手機、主題、語言
 
 - **課表**：貼上課綱上的時間代碼（例如 `T34R7-EC022`），或直接在格子上點。
 - **信件**：E3 站內信直接在 EM3 讀，可以依課程分類、搜尋、標回未讀。E3 沒開放寄信的 API，所以回信會打開 E3。
 - **鍵盤**：`⌘K` 跳到任何一門課，`1`–`8` 切換頁面，`J` / `K` 上下移動，`⌘/` 列出全部快捷鍵。
 - **手機**：底部導覽列、精簡週曆，PDF 交給手機自己的檢視器開。
 - **主題**：daisyUI 的全部主題，加上 EM3 自己的淺色和深色。設定可以匯出成 JSON 帶到別台電腦。
+- **語言**：繁體中文、English、日本語，還有只用 Emoji 的版本。預設跟隨系統語言，可以在設定裡改。
+- **無障礙**：以 WCAG 2.1 AA 與臺灣網站無障礙規範 AA 等級為目標，檢測方式與結果見 [`docs/accessibility.md`](docs/accessibility.md)。
 
 <table>
   <tr>
@@ -172,7 +174,8 @@ pnpm run deploy   # 部署到 Cloudflare（需要 wrangler 登入）
 src/
   app/             路由、App 外殼、Query client、主題同步
   lib/moodle/      Moodle Web Service client、站台清單、型別、檔案 URL 與 HTML 處理
-  lib/time/        相對時間與截止時間的寫法
+  lib/time/        相對時間與截止時間的寫法（四種語言）
+  i18n/            語言偵測、defineMessages、共用字詞
   shared/          共用 UI、Milkdown 編輯器、鍵盤快捷鍵、hooks
   features/
     landing/       未登入時的介紹頁
