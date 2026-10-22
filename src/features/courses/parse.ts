@@ -1,4 +1,5 @@
 import type { EnrolledCourse } from "@/lib/moodle/types";
+import { t } from "./messages";
 
 // E3 encodes the semester in course names: `1151.515505.演算法概論 Introduction to Algorithms`
 // → 115 學年度第 1 學期, course code 515505. Summer terms use `X` (114X).
@@ -9,8 +10,9 @@ export interface Semester {
 	year: number;
 	/** 1 = 上, 2 = 下, 3 = 暑 */
 	term: 1 | 2 | 3;
-	label: string;
-	shortLabel: string;
+	/** Localized on every read, so a language switch shows the new language. */
+	readonly label: string;
+	readonly shortLabel: string;
 }
 
 export interface ParsedCourse {
@@ -25,15 +27,28 @@ export interface ParsedCourse {
 
 export type CourseKind = "semester" | "micro" | "online" | "other";
 
-const TERM_LABEL = { 1: "上學期", 2: "下學期", 3: "暑期" } as const;
-const TERM_SHORT = { 1: "上", 2: "下", 3: "暑" } as const;
+// A class rather than a plain object: React Query's structural sharing copies
+// plain objects, which would freeze the getters into strings.
+class ParsedSemester implements Semester {
+	constructor(
+		readonly code: string,
+		readonly year: number,
+		readonly term: 1 | 2 | 3
+	) {}
+	get label() {
+		return t("semester", this.year, this.term);
+	}
+	get shortLabel() {
+		return t("semesterShort", this.year, this.term);
+	}
+}
 
 export function parseSemester(code: string): Semester | null {
 	const m = /^(\d{3})([12X])$/i.exec(code);
 	if (!m) return null;
 	const year = Number(m[1]);
 	const term = m[2].toUpperCase() === "X" ? 3 : (Number(m[2]) as 1 | 2);
-	return { code: m[0].toUpperCase(), year, term, label: `${year} 學年度${TERM_LABEL[term]}`, shortLabel: `${year} ${TERM_SHORT[term]}` };
+	return new ParsedSemester(m[0].toUpperCase(), year, term);
 }
 
 /** Sort key so newer semesters come first: 1151 > 114X > 1142 > 1141. */
@@ -71,12 +86,7 @@ export function parseCourse(c: EnrolledCourse): ParsedCourse {
 	return { id: c.id, raw: c, semester: null, code: null, name: zh, nameEn: en, kind };
 }
 
-export const KIND_LABEL: Record<CourseKind, string> = {
-	semester: "學期課程",
-	micro: "微學分",
-	online: "線上課程",
-	other: "其他"
-};
+export const kindLabel = (k: CourseKind) => t("kind", k);
 
 /** The semester the calendar says we are in, used when no preference is set. */
 export function latestSemester(courses: ParsedCourse[]): Semester | null {
