@@ -48,7 +48,8 @@ export function DashboardPage() {
 					</motion.div>
 				</div>
 				<div className="space-y-6 lg:col-span-4 lg:space-y-8">
-					<motion.div variants={rise}>
+					{/* Renders nothing for students; hide the empty box so it does not push the column down. */}
+					<motion.div variants={rise} className="empty:hidden">
 						<GradingQueue />
 					</motion.div>
 					<motion.div variants={rise}>

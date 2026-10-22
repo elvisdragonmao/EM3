@@ -41,9 +41,9 @@ export function RecentMaterials({ courses }: { courses: ParsedCourse[] }) {
 										</span>
 										<span className="flex items-center gap-1.5 text-xs text-base-content/50">
 											<CourseTag course={c} />
-											<span>·</span>
-											<Ago ts={f.time} />
-											<span className="hidden sm:inline">· {humanSize(f.size)}</span>
+											<span className="shrink-0">·</span>
+											<Ago ts={f.time} className="shrink-0 whitespace-nowrap" />
+											<span className="hidden shrink-0 whitespace-nowrap sm:inline">· {humanSize(f.size)}</span>
 										</span>
 									</span>
 									<span className="sr-only">{m.title}</span>
