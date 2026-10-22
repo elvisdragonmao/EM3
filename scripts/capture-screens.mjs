@@ -144,7 +144,7 @@ async function context(theme, width, height) {
 	await ctx.route(/e3p\.nycu\.edu\.tw\/webservice\/rest/, async route => {
 		const body = route.request().postData() ?? "";
 		const fn = new URLSearchParams(body).get("wsfunction") ?? "";
-		if (/save_|submit_|_view_|mark_|_set_|update_|delete_|add_/.test(decodeURIComponent(body))) return route.abort();
+		if (/save_|submit_|_view_|mark_|_set_|update_|delete_|add_|start_|process_|send_|create_|get_attempt_data/.test(decodeURIComponent(body))) return route.abort();
 		const res = await route.fetch();
 		return route.fulfill({ response: res, body: scrub(await res.text(), fn) });
 	});

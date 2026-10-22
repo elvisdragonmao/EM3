@@ -14,6 +14,7 @@ import json, os, sys, urllib.parse, urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ORIGIN = "https://e3p.nycu.edu.tw"
 READ_VERBS = {"get", "search", "list", "check", "can", "data"}
+WRITES_DISGUISED_AS_READS = {"mod_quiz_get_attempt_data"}
 
 
 def env():
@@ -39,6 +40,9 @@ def main():
     parts = fn.split("_")
     if len(parts) < 3 or parts[2] not in READ_VERBS:
         sys.exit(f"refusing {fn}: only read functions ({', '.join(sorted(READ_VERBS))}) are allowed")
+    # Named like a read, but it moves an in-progress attempt's current page.
+    if fn in WRITES_DISGUISED_AS_READS:
+        sys.exit(f"refusing {fn}: it changes state on E3")
     e = env()
     tok = post("/login/token.php", {"username": e["E3_USERNAME"], "password": e["E3_PASSWORD"], "service": "moodle_mobile_app"})
     if "token" not in tok:

@@ -39,7 +39,8 @@ const info = await (
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, locale: "zh-TW", timezoneId: "Asia/Taipei", isMobile: width < 600, hasTouch: width < 600 });
 await ctx.addCookies([{ name: "em3_session", value: encodeURIComponent(JSON.stringify({ token, userid: info.userid })), url: base }]);
-const WRITE = /mod_assign_save_submission|mod_assign_submit_for_grading|webservice\/upload\.php|_view_|mark_|_set_|update_|delete_|add_/;
+// Quiz attempts are writes too, and get_attempt_data moves the attempt's current page.
+const WRITE = /mod_assign_save_submission|mod_assign_submit_for_grading|webservice\/upload\.php|_view_|mark_|_set_|update_|delete_|add_|_attempt(_data)?\b|start_|save_|process_|submit_|send_|create_/;
 await ctx.route(/e3p\.nycu\.edu\.tw/, route => {
 	const body = decodeURIComponent(route.request().postData() ?? "");
 	if (WRITE.test(route.request().url()) || WRITE.test(body)) return route.abort();
