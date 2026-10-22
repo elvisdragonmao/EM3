@@ -29,6 +29,8 @@ export interface SchoolPeriods {
 	example: string;
 	/** Courses carry a `schedule` (and `room`) custom field EM3 can fill the timetable from. */
 	fromMoodle?: boolean;
+	/** The school's syllabus has class times the EM3 server can read (server version only, see timesSource). */
+	fromSyllabus?: boolean;
 	/** Blocks of the day the school's own timetable is drawn in (CCU's Ⅰ-Ⅴ); the view shows whole blocks. */
 	sections?: { label: string; rows: string[] }[];
 }
@@ -71,7 +73,7 @@ const NYCU_PERIODS: Period[] = [
 	{ code: "d", start: "21:30", end: "22:20" }
 ];
 
-/** Parses codes like `T34`, `M56R7`, `W56-EC022`, `T34-EC115,R2-EC115` into slots plus the room after a dash. */
+/** Parses codes like `T34`, `M56R7`, `W56-EC022`, `T34-EC115,R2-EC115` into slots plus the room after a dash; the syllabus's campus suffix (`R34-EC114[GF]`) is dropped. */
 function parseNycu(input: string): { slots: Slot[]; room?: string } {
 	const slots: Slot[] = [];
 	let room: string | undefined;
@@ -81,7 +83,7 @@ function parseNycu(input: string): { slots: Slot[]; room?: string } {
 		.filter(Boolean)) {
 		const dash = chunk.indexOf("-");
 		const times = dash < 0 ? chunk : chunk.slice(0, dash);
-		const place = dash < 0 ? "" : chunk.slice(dash + 1);
+		const place = dash < 0 ? "" : chunk.slice(dash + 1).replace(/\[[^\]]*\]/g, "");
 		if (place && !room) room = place;
 		let day = -1;
 		for (const ch of times) {
@@ -134,7 +136,8 @@ const SCHOOLS: Record<string, SchoolPeriods> = {
 			groupByDay(slots, NYCU_PERIODS)
 				.map(([d, codes]) => DAY_CODES[d] + codes.join(""))
 				.join(""),
-		example: "T34"
+		example: "T34",
+		fromSyllabus: true
 	},
 	"https://ecourse2.ccu.edu.tw": {
 		periods: CCU_PERIODS,

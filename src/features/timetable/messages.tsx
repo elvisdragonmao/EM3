@@ -19,6 +19,7 @@ export const t = defineMessages({
 		cleared: (cell: string) => `已清除${cell}`,
 		hint: "三種設定方式：輸入課綱上的時間代碼（例如 R34-EC114）、點 ↗ 打開課綱查、或選一門課當畫筆再點左邊的格子。",
 		hintMoodle: (example: string) => `上課時間已從學校的 Moodle 帶入。要修改時，輸入上課時間（例：${example}），或選一門課當畫筆再點左邊的格子。`,
+		hintSyllabus: (example: string) => `上課時間已從課綱帶入。要修改時，輸入課綱上的時間代碼（例：${example}），或選一門課當畫筆再點左邊的格子。`,
 		gridHint: "用方向鍵在格子間移動。選了畫筆時按 Enter 填入或清除；沒選畫筆時按 Enter 打開那堂課。",
 		noCourses: (link: ReactNode) => <>本學期沒有課程，或都被隱藏了。到 {link} 看看。</>,
 		courses: "課程",
@@ -30,7 +31,8 @@ export const t = defineMessages({
 		clear: (course: string) => `清除${course}的上課時間`,
 		clearTitle: "清除時間",
 		clearCustom: (course: string) => `清除${course}自訂的上課時間`,
-		clearCustomTitle: "清除自訂時間，改用 Moodle 上的時間"
+		clearCustomTitle: "清除自訂時間，改用 Moodle 上的時間",
+		clearSyllabusTitle: "清除自訂時間，改用課綱上的時間"
 	},
 	en: {
 		title: "Timetable",
@@ -44,6 +46,7 @@ export const t = defineMessages({
 		cleared: (cell: string) => `${cell} cleared`,
 		hint: "Three ways to set it: type the time code from the syllabus (e.g. R34-EC114), click ↗ to look it up in the syllabus, or pick a course as your brush and click cells in the grid.",
 		hintMoodle: (example: string) => `Class times come from your school's Moodle. To change one, type the class time (e.g. ${example}), or pick a course as your brush and click cells in the grid.`,
+		hintSyllabus: (example: string) => `Class times come from the syllabus. To change one, type the time code (e.g. ${example}), or pick a course as your brush and click cells in the grid.`,
 		gridHint: "Use the arrow keys to move between cells. With a brush selected, Enter fills or clears a cell; without one, Enter opens that class.",
 		noCourses: (link: ReactNode) => <>No courses this semester, or they're all hidden. Check {link}.</>,
 		courses: "Courses",
@@ -55,7 +58,8 @@ export const t = defineMessages({
 		clear: (course: string) => `Clear class times for ${course}`,
 		clearTitle: "Clear times",
 		clearCustom: (course: string) => `Clear your own class times for ${course}`,
-		clearCustomTitle: "Clear your times and use Moodle's"
+		clearCustomTitle: "Clear your times and use Moodle's",
+		clearSyllabusTitle: "Clear your times and use the syllabus's"
 	},
 	ja: {
 		title: "時間割",
@@ -69,6 +73,7 @@ export const t = defineMessages({
 		cleared: (cell: string) => `${cell}をクリアしました`,
 		hint: "設定方法は 3 つあります：シラバスの時間コード（例：R34-EC114）を入力する、↗ でシラバスを開いて確認する、または授業をブラシとして選んで表のマスをクリックする。",
 		hintMoodle: (example: string) => `授業時間は学校の Moodle から読み込まれています。変更するには授業時間（例：${example}）を入力するか、授業をブラシとして選んで表のマスをクリックします。`,
+		hintSyllabus: (example: string) => `授業時間はシラバスから読み込まれています。変更するには時間コード（例：${example}）を入力するか、授業をブラシとして選んで表のマスをクリックします。`,
 		gridHint: "矢印キーでマスを移動します。ブラシを選んでいるときは Enter で入力またはクリア、選んでいないときは Enter でその授業を開きます。",
 		noCourses: (link: ReactNode) => <>今学期の授業がないか、すべて非表示になっています。{link}を確認してください。</>,
 		courses: "授業",
@@ -80,7 +85,8 @@ export const t = defineMessages({
 		clear: (course: string) => `${course} の授業時間をクリア`,
 		clearTitle: "時間をクリア",
 		clearCustom: (course: string) => `${course} に自分で設定した授業時間をクリア`,
-		clearCustomTitle: "自分で設定した時間をクリアして Moodle の時間を使う"
+		clearCustomTitle: "自分で設定した時間をクリアして Moodle の時間を使う",
+		clearSyllabusTitle: "自分で設定した時間をクリアしてシラバスの時間を使う"
 	},
 	emoji: {
 		title: "🗓️🎓",
@@ -94,6 +100,7 @@ export const t = defineMessages({
 		cleared: (cell: string) => `🧹 ${cell}`,
 		hint: "⌨️ R34-EC114 · ↗️ 📜 · 🖌️ → 👆🔲",
 		hintMoodle: (example: string) => `🎓⬇️⏰ · ⌨️ ${example} · 🖌️ → 👆🔲`,
+		hintSyllabus: (example: string) => `📜⬇️⏰ · ⌨️ ${example} · 🖌️ → 👆🔲`,
 		gridHint: "⬅️➡️⬆️⬇️ · 🖌️ ↵ ✏️/🧹 · ↵ 📂",
 		noCourses: (link: ReactNode) => <>🎓🤷 · 👉 {link}</>,
 		courses: "📚",
@@ -105,6 +112,7 @@ export const t = defineMessages({
 		clear: (course: string) => `🧹 ${course} ⏰`,
 		clearTitle: "🧹⏰",
 		clearCustom: (course: string) => `🧹 ${course} ✏️⏰`,
-		clearCustomTitle: "🧹✏️ → 🎓⏰"
+		clearCustomTitle: "🧹✏️ → 🎓⏰",
+		clearSyllabusTitle: "🧹✏️ → 📜⏰"
 	}
 });

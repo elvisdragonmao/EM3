@@ -1,13 +1,18 @@
 import { useSession } from "@/features/auth/session";
 import { useCourseIndex } from "@/features/courses/api";
 import { type TimetableEntry, usePrefs } from "@/features/preferences/store";
+import { useServerReady } from "@/features/server/store";
 import { call } from "@/lib/moodle/client";
 import { DEFAULT_MOODLE_URL } from "@/lib/moodle/site";
+import { api } from "@/lib/server/api";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { schoolPeriods } from "./periods";
+import { useTimesSource } from "./source";
+import { entriesFromSyllabus, NYCU_MAX_KEYS, nycuKeys } from "./syllabus";
 
 const EMPTY: Record<string, TimetableEntry> = {};
+const STALE = 6 * 60 * 60_000;
 
 interface CourseFields {
 	courses: { id: number; customfields?: { shortname: string; value?: string }[] }[];
@@ -31,7 +36,7 @@ export function entriesFromFields(data: CourseFields, parse: (input: string) => 
 }
 
 /** Class times the school already keeps on Moodle, for this semester's courses. */
-function useMoodleSchedules(): Record<string, TimetableEntry> {
+function useMoodleSchedules(enabled: boolean): Record<string, TimetableEntry> {
 	const school = schoolPeriods();
 	const { currentCourses } = useCourseIndex();
 	const ids = currentCourses.map(c => c.id).join(",");
@@ -40,22 +45,51 @@ function useMoodleSchedules(): Record<string, TimetableEntry> {
 	const { data } = useQuery({
 		queryKey: ["schedules", ids],
 		queryFn: () => call<CourseFields>("core_course_get_courses_by_field", { field: "ids", value: ids }),
-		enabled: !!school?.fromMoodle && ids !== "",
-		staleTime: 6 * 60 * 60_000,
+		enabled: enabled && ids !== "",
+		staleTime: STALE,
 		select
 	});
 	return data ?? EMPTY;
 }
 
-/** The signed-in school's timetable: what the student set, over what Moodle says. Empty for schools without a period table. */
-export function useTimetable(): Record<string, TimetableEntry> {
-	const manual = useManualTimetable();
-	const moodle = useMoodleSchedules();
-	const supported = schoolPeriods() !== null;
-	return useMemo(() => (supported ? { ...moodle, ...manual } : EMPTY), [supported, moodle, manual]);
+type SyllabusTimes = Record<string, string | null>;
+
+/** Class times from NYCU's syllabus, read through the EM3 server (server version only). */
+function useSyllabusSchedules(enabled: boolean): Record<string, TimetableEntry> {
+	const school = schoolPeriods();
+	const ready = useServerReady();
+	const { currentCourses } = useCourseIndex();
+	const keys = useMemo(() => nycuKeys(currentCourses), [currentCourses]);
+	const list = [...keys.keys()].sort();
+	const select = useCallback((data: SyllabusTimes) => entriesFromSyllabus(keys, data, school!.parse), [keys, school]);
+	const { data } = useQuery({
+		queryKey: ["nycu-schedules", list.join(",")],
+		queryFn: async ({ signal }) => {
+			const parts: SyllabusTimes[] = [];
+			for (let i = 0; i < list.length; i += NYCU_MAX_KEYS) parts.push(await api<SyllabusTimes>(`nycu/schedules?courses=${encodeURIComponent(list.slice(i, i + NYCU_MAX_KEYS).join(","))}`, { signal }));
+			return Object.assign({}, ...parts) as SyllabusTimes;
+		},
+		enabled: enabled && ready && list.length > 0,
+		// The server leaves out courses it couldn't reach the syllabus for; ask again soon for those.
+		staleTime: q => (q.state.data && list.every(k => k in q.state.data!) ? STALE : 5 * 60_000),
+		select
+	});
+	return data ?? EMPTY;
 }
 
-/** Entries the student set by hand on this school, to tell them apart from Moodle's. */
+/** The signed-in school's timetable: what the student set, over what Moodle or the syllabus says. Empty for schools without a period table. */
+export function useTimetable(): Record<string, TimetableEntry> {
+	const manual = useManualTimetable();
+	const source = useTimesSource();
+	const moodle = useMoodleSchedules(source === "moodle");
+	const syllabus = useSyllabusSchedules(source === "syllabus");
+	const auto = source === "moodle" ? moodle : source === "syllabus" ? syllabus : EMPTY;
+	const supported = schoolPeriods() !== null;
+	// A student's entry with no slots hides the time filled in for them.
+	return useMemo(() => (supported ? { ...auto, ...manual } : EMPTY), [supported, auto, manual]);
+}
+
+/** Entries the student set by hand on this school, to tell them apart from the ones filled in for them. */
 export function useManualTimetable(): Record<string, TimetableEntry> {
 	const site = useSession(s => s.baseUrl);
 	return usePrefs(s => (site === DEFAULT_MOODLE_URL ? s.timetable : (s.siteTimetables[site] ?? EMPTY)));

@@ -14,6 +14,7 @@ import { t } from "./messages";
 import { blocksFor, blockTime, classMoment, useNow } from "./now";
 import { dayIndex, formatSlots, overlaps, parseScheduleCode, periodByCode, periodEndMinutes, periodStartMinutes, schoolPeriods } from "./periods";
 import { useManualTimetable, useTimetable } from "./schedule";
+import { useTimesSource } from "./source";
 
 /** Height of one grid row. Rows are even, like the school's own timetable, not stretched to the real breaks. */
 const ROW = 64;
@@ -27,6 +28,7 @@ export function TimetablePage() {
 	const manual = useManualTimetable();
 	const setTimetable = usePrefs(s => s.setTimetable);
 	const school = schoolPeriods();
+	const source = useTimesSource();
 	const [brush, setBrush] = useState<number | null>(null);
 	const [status, setStatus] = useState("");
 	// Roving tabindex: Tab enters the grid on the cell the arrow keys last reached.
@@ -282,7 +284,7 @@ export function TimetablePage() {
 				<section className="space-y-2">
 					<p id={hintId} className="flex items-center gap-1.5 px-1 text-xs text-base-content/65">
 						<PaintBrushIcon size={14} />
-						{school.fromMoodle ? t("hintMoodle", school.example) : t("hint")}
+						{source === "moodle" ? t("hintMoodle", school.example) : source === "syllabus" ? t("hintSyllabus", school.example) : t("hint")}
 					</p>
 					{courses.map(c => (
 						<CourseScheduleRow
@@ -322,7 +324,7 @@ function CourseScheduleRow({
 	course: ParsedCourse;
 	hintId: string;
 	entry?: TimetableEntry;
-	/** Set by the student, as opposed to filled in from Moodle. */
+	/** Set by the student, as opposed to filled in from Moodle or the syllabus. */
 	manual: boolean;
 	selected: boolean;
 	onSelect: () => void;
@@ -333,6 +335,7 @@ function CourseScheduleRow({
 	);
 	const setTimetable = usePrefs(s => s.setTimetable);
 	const school = schoolPeriods();
+	const source = useTimesSource();
 	// NYCU codes carry the room after a dash; schools that fill times from Moodle keep the room out of the code.
 	const code = entry ? formatSlots(entry.slots) + (entry.room && !school?.fromMoodle ? `-${entry.room}` : "") : "";
 	const [draft, setDraft] = useState<string | null>(null);
@@ -341,8 +344,8 @@ function CourseScheduleRow({
 	function commit() {
 		if (draft === null) return;
 		const parsed = parseScheduleCode(draft);
-		// An empty input on a Moodle-filled school keeps an empty entry, which hides Moodle's time; the reset button brings it back.
-		setTimetable(course.id, parsed.slots.length || school?.fromMoodle ? { ...parsed, room: parsed.room ?? (school?.fromMoodle ? entry?.room : undefined) } : null);
+		// Where times are filled in, an empty input keeps an empty entry, which hides that time; the reset button brings it back.
+		setTimetable(course.id, parsed.slots.length || source ? { ...parsed, room: parsed.room ?? (school?.fromMoodle ? entry?.room : undefined) } : null);
 		setDraft(null);
 	}
 
@@ -386,8 +389,8 @@ function CourseScheduleRow({
 				type="button"
 				className={`btn btn-ghost btn-xs btn-square ${manual ? "" : "invisible"}`}
 				onClick={() => setTimetable(course.id, null)}
-				aria-label={school?.fromMoodle ? t("clearCustom", look.title) : t("clear", look.title)}
-				title={school?.fromMoodle ? t("clearCustomTitle") : t("clearTitle")}
+				aria-label={source ? t("clearCustom", look.title) : t("clear", look.title)}
+				title={source === "moodle" ? t("clearCustomTitle") : source === "syllabus" ? t("clearSyllabusTitle") : t("clearTitle")}
 				tabIndex={manual ? 0 : -1}
 			>
 				<ArrowCounterClockwiseIcon size={14} />
