@@ -6,6 +6,7 @@ import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { ChartBarIcon, ChatTextIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { t as tr } from "./messages";
 
 interface GradeItem {
 	id: number;
@@ -38,60 +39,74 @@ export function GradesTab({ course }: { course: ParsedCourse }) {
 	const total = items.find(i => i.itemtype === "course");
 	const rows = items.filter(i => i.itemtype !== "course");
 	const released = rows.filter(i => !empty(i.gradeformatted)).length;
-	if (!rows.length) return <Empty icon={<ChartBarIcon size={40} weight="duotone" />} title="老師還沒有建立成績項目" />;
+	if (!rows.length) return <Empty icon={<ChartBarIcon size={40} weight="duotone" />} title={tr("noGradeItems")} />;
 
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-wrap gap-3">
 				<div className="card-quiet min-w-40 grow px-4 py-3 sm:grow-0">
-					<p className="text-xs text-base-content/50">已公布</p>
+					<p className="text-xs text-base-content/65">{tr("released")}</p>
 					<p className="text-2xl font-semibold tabular-nums">
 						{released}
-						<span className="text-base font-normal text-base-content/40"> / {rows.length}</span>
+						<span className="text-base font-normal text-base-content/65"> / {rows.length}</span>
 					</p>
 				</div>
 				{total && !empty(total.gradeformatted) && (
 					<div className="card-quiet min-w-40 grow px-4 py-3 sm:grow-0">
-						<p className="text-xs text-base-content/50">目前總分</p>
+						<p className="text-xs text-base-content/65">{tr("total")}</p>
 						<p className="text-2xl font-semibold tabular-nums">{decode(total.gradeformatted)}</p>
 					</div>
 				)}
 			</div>
-			<ul className="card-quiet divide-y divide-base-content/[0.06] overflow-hidden">
-				{rows.map(i => {
-					const has = !empty(i.gradeformatted);
-					return (
-						<li key={i.id} className="px-4 py-3">
-							<div className="flex items-center gap-3">
-								<div className="min-w-0 grow">
-									{(i.itemmodule === "assign" || i.itemmodule === "quiz") && i.cmid ? (
-										<Link
-											to={i.itemmodule === "quiz" ? "/courses/$courseId/quiz/$cmid" : "/courses/$courseId/assign/$cmid"}
-											params={{ courseId: String(course.id), cmid: String(i.cmid) }}
-											className="truncate font-medium hover:underline"
-										>
-											{i.itemname}
-										</Link>
-									) : (
-										<p className="truncate font-medium">{i.itemname ?? "（未命名）"}</p>
-									)}
-									<p className="text-xs text-base-content/45">範圍 {decode(i.rangeformatted)}</p>
-								</div>
-								<div className="text-right">
-									<p className={`text-lg font-semibold tabular-nums ${has ? "" : "text-base-content/30"}`}>{has ? decode(i.gradeformatted) : "未公布"}</p>
-									{has && !empty(i.percentageformatted) && <p className="text-xs text-base-content/45 tabular-nums">{decode(i.percentageformatted)}</p>}
-								</div>
-							</div>
-							{i.feedback && (
-								<div className="mt-2 flex gap-2 rounded-lg bg-base-200 p-3 text-sm">
-									<ChatTextIcon size={16} className="mt-0.5 shrink-0 text-base-content/40" />
-									<div className="prose-e3 min-w-0" dangerouslySetInnerHTML={{ __html: cleanHtml(i.feedback) }} />
-								</div>
-							)}
-						</li>
-					);
-				})}
-			</ul>
+			<div className="card-quiet overflow-hidden">
+				<table className="w-full">
+					<caption className="sr-only">{tr("gradesCaption")}</caption>
+					<thead className="sr-only">
+						<tr>
+							<th scope="col">{tr("colItem")}</th>
+							<th scope="col">{tr("colGrade")}</th>
+						</tr>
+					</thead>
+					{rows.map(i => {
+						const has = !empty(i.gradeformatted);
+						return (
+							<tbody key={i.id} className="border-t border-base-content/[0.06] first-of-type:border-t-0">
+								<tr>
+									<th scope="row" className={`w-full px-4 pt-3 text-left align-middle font-normal ${i.feedback ? "pb-0" : "pb-3"}`}>
+										{(i.itemmodule === "assign" || i.itemmodule === "quiz") && i.cmid ? (
+											<Link
+												to={i.itemmodule === "quiz" ? "/courses/$courseId/quiz/$cmid" : "/courses/$courseId/assign/$cmid"}
+												params={{ courseId: String(course.id), cmid: String(i.cmid) }}
+												className="font-medium break-words hover:underline"
+											>
+												{i.itemname}
+											</Link>
+										) : (
+											<span className="block font-medium break-words">{i.itemname ?? tr("unnamed")}</span>
+										)}
+										<span className="block text-xs text-base-content/65">{tr("range", decode(i.rangeformatted))}</span>
+									</th>
+									<td className={`px-4 pt-3 text-right align-middle whitespace-nowrap ${i.feedback ? "pb-0" : "pb-3"}`}>
+										<span className={`block text-lg font-semibold tabular-nums ${has ? "" : "text-base-content/65"}`}>{has ? decode(i.gradeformatted) : tr("notReleased")}</span>
+										{has && !empty(i.percentageformatted) && <span className="block text-xs text-base-content/65 tabular-nums">{decode(i.percentageformatted)}</span>}
+									</td>
+								</tr>
+								{i.feedback && (
+									<tr>
+										<td colSpan={2} className="px-4 pt-2 pb-3">
+											<div className="flex gap-2 rounded-lg bg-base-200 p-3 text-sm">
+												<ChatTextIcon size={16} className="mt-0.5 shrink-0 text-base-content/65" />
+												<span className="sr-only">{tr("feedback")}</span>
+												<div className="prose-e3 min-w-0" dangerouslySetInnerHTML={{ __html: cleanHtml(i.feedback) }} />
+											</div>
+										</td>
+									</tr>
+								)}
+							</tbody>
+						);
+					})}
+				</table>
+			</div>
 		</div>
 	);
 }

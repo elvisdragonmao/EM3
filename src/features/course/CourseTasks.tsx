@@ -4,21 +4,22 @@ import type { ParsedCourse } from "@/features/courses/parse";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { ListChecksIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
+import { t as tr } from "./messages";
 
 export function TaskGroups({ tasks, showCourse }: { tasks: Task[]; showCourse: boolean }) {
 	const groups = [
-		{ label: "要交的", items: tasks.filter(t => t.state === "todo" || t.state === "late") },
-		{ label: "還沒開放", items: tasks.filter(t => t.state === "upcoming") },
-		{ label: "已完成", items: tasks.filter(t => t.state === "submitted" || t.state === "graded").reverse() },
-		{ label: "已關閉・沒交", items: tasks.filter(t => t.state === "closed").reverse() }
+		{ label: tr("groupTodo"), items: tasks.filter(t => t.state === "todo" || t.state === "late") },
+		{ label: tr("groupUpcoming"), items: tasks.filter(t => t.state === "upcoming") },
+		{ label: tr("groupDone"), items: tasks.filter(t => t.state === "submitted" || t.state === "graded").reverse() },
+		{ label: tr("groupClosed"), items: tasks.filter(t => t.state === "closed").reverse() }
 	].filter(g => g.items.length);
 	return (
 		<div className="space-y-6">
 			{groups.map(g => (
 				<section key={g.label}>
-					<h3 className="mb-2 px-1 text-sm font-semibold text-base-content/70">
-						{g.label} <span className="font-normal text-base-content/40">{g.items.length}</span>
-					</h3>
+					<h2 className="mb-2 px-1 text-sm font-semibold text-base-content/70">
+						{g.label} <span className="font-normal text-base-content/65">{g.items.length}</span>
+					</h2>
 					<ul className="card-quiet divide-y divide-base-content/[0.06] overflow-hidden">
 						{g.items.map(t => (
 							<li key={t.key}>
@@ -37,6 +38,6 @@ export function CourseTasks({ course }: { course: ParsedCourse }) {
 	const { tasks, isPending, error, refetch } = useTasks(scope);
 	if (error) return <ErrorNote error={error} retry={refetch} />;
 	if (isPending) return <Lines n={4} />;
-	if (!tasks.length) return <Empty icon={<ListChecksIcon size={40} weight="duotone" />} title="這門課在 Moodle 上沒有作業或測驗" />;
+	if (!tasks.length) return <Empty icon={<ListChecksIcon size={40} weight="duotone" />} title={tr("noTasks")} />;
 	return <TaskGroups tasks={tasks} showCourse={false} />;
 }

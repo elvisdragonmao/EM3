@@ -5,6 +5,7 @@ import { e3Link, fileExt, fileUrl } from "@/lib/moodle/files";
 import type { CourseModule, CourseSection } from "@/lib/moodle/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Zip, ZipPassThrough, zipSync, type Zippable } from "fflate";
+import { t } from "./messages";
 
 // E3 calls folders 「教材」 and nearly every folder holds one to three files, so
 // EM3 flattens them: the unit of material is the file, grouped by its folder.
@@ -269,7 +270,7 @@ export async function streamMaterialsZip(items: PickedFile[], name: string, sign
 				}
 			} catch (e) {
 				if (signal.aborted) throw e;
-				failed.push(`${file.name}（不完整）`);
+				failed.push(t("incomplete", file.name));
 			} finally {
 				entry.push(new Uint8Array(0), true);
 			}

@@ -1,6 +1,7 @@
 import { useCourseContents } from "@/features/courses/api";
 import type { ParsedCourse } from "@/features/courses/parse";
 import { useCourseLook } from "@/features/courses/look";
+import { tc } from "@/i18n/common";
 import { saveBlob, safeName } from "@/lib/download";
 import { cleanHtml, fileUrl, humanSize } from "@/lib/moodle/files";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
@@ -35,6 +36,7 @@ import {
 	ZIP_LIMIT,
 	type ZipProgress
 } from "./materials";
+import { t as tr } from "./messages";
 
 const WEEK = 7 * 86400;
 
@@ -76,7 +78,7 @@ export function MaterialsTab({ course }: { course: ParsedCourse }) {
 
 	if (error) return <ErrorNote error={error} retry={refetch} />;
 	if (isPending) return <Lines n={5} />;
-	if (!materials.length) return <Empty icon={<FilesIcon size={40} weight="duotone" />} title="這門課還沒有教材" />;
+	if (!materials.length) return <Empty icon={<FilesIcon size={40} weight="duotone" />} title={tr("noMaterials")} />;
 
 	const groups: { title: string | null; items: Material[] }[] =
 		usesSections && !newestFirst && !q
@@ -90,29 +92,33 @@ export function MaterialsTab({ course }: { course: ParsedCourse }) {
 
 	const fileCount = materials.reduce((n, m) => n + m.files.length, 0);
 	const visibleKeys = filtered.flatMap(m => m.files.map(f => f.key));
+	const matches = filtered.reduce((n, m) => n + Math.max(1, m.files.length), 0);
 
 	return (
 		<div className="space-y-5">
 			<div className="flex flex-wrap items-center gap-2">
 				<label className="input input-sm min-w-0 grow sm:max-w-xs">
 					<MagnifyingGlassIcon size={15} className="opacity-50" />
-					<input data-search type="search" placeholder={`搜尋 ${fileCount} 個檔案`} value={q} onChange={e => setQ(e.target.value)} />
+					<input data-search type="search" placeholder={tr("searchPlaceholder", fileCount)} value={q} onChange={e => setQ(e.target.value)} aria-label={tr("searchLabel")} />
 				</label>
-				<button className="btn btn-sm btn-ghost" onClick={() => setNewestFirst(v => !v)}>
+				<button type="button" className="btn btn-sm btn-ghost" onClick={() => setNewestFirst(v => !v)}>
 					{newestFirst ? <SortDescendingIcon size={16} /> : <SortAscendingIcon size={16} />}
-					{newestFirst ? "最新的在上面" : usesSections ? "依週次 / 單元" : "老師排的順序"}
+					{newestFirst ? tr("newestFirst") : usesSections ? tr("bySection") : tr("teacherOrder")}
 				</button>
 				{fileCount > 1 && (
-					<button className={`btn btn-sm ${selecting ? "btn-active" : "btn-ghost"}`} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+					<button type="button" className={`btn btn-sm ${selecting ? "btn-active" : "btn-ghost"}`} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
 						<CheckSquareIcon size={16} />
-						選取
+						{tr("select")}
 					</button>
 				)}
 			</div>
+			<p role="status" className="sr-only">
+				{q ? (filtered.length ? tr("resultCount", matches) : tr("notFound", q)) : ""}
+			</p>
 
 			{groups.map((g, gi) => (
 				<section key={g.title ?? gi}>
-					{g.title && <h3 className="mb-2 px-1 text-sm font-semibold text-base-content/70">{g.title}</h3>}
+					{g.title && <h2 className="mb-2 px-1 text-sm font-semibold text-base-content/70">{g.title}</h2>}
 					<motion.ul className="card-quiet divide-y divide-base-content/[0.06] overflow-hidden" initial="i" animate="a" variants={{ a: { transition: { staggerChildren: 0.025 } } }}>
 						{g.items.map(m => (
 							<motion.li key={m.key} variants={{ i: { opacity: 0, y: 6 }, a: { opacity: 1, y: 0 } }}>
@@ -122,7 +128,7 @@ export function MaterialsTab({ course }: { course: ParsedCourse }) {
 					</motion.ul>
 				</section>
 			))}
-			{!filtered.length && <Empty title={`找不到「${q}」`} />}
+			{!filtered.length && <Empty title={tr("notFound", q)} />}
 			{selecting && <SelectionBar course={course} materials={materials} picked={picked} visibleKeys={visibleKeys} toggle={toggle} onDone={stopSelecting} />}
 		</div>
 	);
@@ -141,9 +147,10 @@ function MaterialRow({ m, intro, selection }: { m: Material; intro?: string; sel
 				<Icon size={22} weight="duotone" className="shrink-0 text-info" />
 				<span className="min-w-0 grow">
 					<span className="block truncate text-sm font-medium">{m.title}</span>
-					<span className="block truncate text-xs text-base-content/50">{m.kind === "url" ? m.href : m.kind === "video" ? "在 Moodle 播放影片" : "在 Moodle 開啟"}</span>
+					<span className="block truncate text-xs text-base-content/65">{m.kind === "url" ? m.href : m.kind === "video" ? tr("playInMoodle") : tr("openInMoodle")}</span>
 				</span>
 				<ArrowSquareOutIcon size={16} className="shrink-0 opacity-40" />
+				<span className="sr-only">{tc("openInNewTab")}</span>
 			</a>
 		);
 	}
@@ -152,9 +159,9 @@ function MaterialRow({ m, intro, selection }: { m: Material; intro?: string; sel
 		<div className="px-4 py-3">
 			<div className="flex items-center gap-3">
 				{selection && m.files.length > 0 && <FolderCheck files={m.files} selection={selection} />}
-				<FolderSimpleIcon size={22} weight="duotone" className="shrink-0 text-base-content/40" />
+				<FolderSimpleIcon size={22} weight="duotone" className="shrink-0 text-base-content/65" />
 				<span className="min-w-0 grow truncate text-sm font-semibold">{m.title}</span>
-				{m.time > 0 && <Ago ts={m.time} className="shrink-0 text-xs text-base-content/45" />}
+				{m.time > 0 && <Ago ts={m.time} className="shrink-0 text-xs text-base-content/65" />}
 			</div>
 			{intro && <FolderIntro html={intro} />}
 			{m.files.length > 0 && (
@@ -166,7 +173,7 @@ function MaterialRow({ m, intro, selection }: { m: Material; intro?: string; sel
 					))}
 				</ul>
 			)}
-			{!intro && !m.files.length && <p className="mt-1 ml-9 text-xs text-base-content/45">這個資料夾目前是空的</p>}
+			{!intro && !m.files.length && <p className="mt-1 ml-9 text-xs text-base-content/65">{tr("emptyFolder")}</p>}
 		</div>
 	);
 }
@@ -195,7 +202,7 @@ function FolderCheck({ files, selection }: { files: MaterialFile[]; selection: S
 					e.target.checked
 				)
 			}
-			aria-label="選取整個資料夾"
+			aria-label={tr("selectFolder")}
 		/>
 	);
 }
@@ -210,9 +217,9 @@ function FileRow({ f, context, isNew, compact = false, selection }: { f: Materia
 					<span className="truncate text-sm font-medium" title={f.name}>
 						{f.name}
 					</span>
-					{isNew && <span className="badge badge-xs badge-primary badge-soft shrink-0">NEW</span>}
+					{isNew && <span className="badge badge-xs badge-primary badge-soft shrink-0">{tr("isNew")}</span>}
 				</span>
-				<span className="block truncate text-xs text-base-content/50">
+				<span className="block truncate text-xs text-base-content/65">
 					{context && <>{context} · </>}
 					<Ago ts={f.time} /> · {humanSize(f.size)}
 				</span>
@@ -229,10 +236,15 @@ function FileRow({ f, context, isNew, compact = false, selection }: { f: Materia
 		);
 	return (
 		<div className={row}>
-			<button data-nav onClick={() => openFile(f)} className="flex min-w-0 grow items-center gap-3 text-left">
+			<button type="button" data-nav onClick={() => openFile(f)} className="flex min-w-0 grow items-center gap-3 text-left">
 				{info}
 			</button>
-			<a href={fileUrl(f.url, { download: true })} className="btn btn-ghost btn-sm btn-square shrink-0 opacity-60 group-hover:opacity-100" aria-label={`下載 ${f.name}`} title="下載">
+			<a
+				href={fileUrl(f.url, { download: true })}
+				className="btn btn-ghost btn-sm btn-square shrink-0 opacity-60 group-hover:opacity-100"
+				aria-label={tr("downloadFile", f.name)}
+				title={tc("download")}
+			>
 				<DownloadSimpleIcon size={17} />
 			</a>
 		</div>
@@ -281,7 +293,7 @@ function SelectionBar({
 			a.click();
 			return;
 		}
-		const name = `${safeName(look.title) || "教材"}.zip`;
+		const name = `${safeName(look.title) || tr("zipName")}.zip`;
 		const ctrl = new AbortController();
 		abort.current = ctrl;
 		try {
@@ -304,64 +316,65 @@ function SelectionBar({
 	}
 
 	const note = tooBig ? (
-		<span className="block text-xs text-error">超過 4 GB，zip 裝不下。請分成幾批選取，或改成一個一個下載。</span>
+		<span className="block text-xs text-error">{tr("tooBig")}</span>
 	) : risky ? (
 		<span className="flex items-start gap-1 text-xs text-base-content/70">
 			<WarningIcon size={14} weight="fill" className="mt-px shrink-0 text-warning" />
-			檔案很大，你的瀏覽器不支援邊下載邊寫入硬碟，打包時要全部放在記憶體裡，可能會失敗。建議改用電腦版 Chrome 或 Edge，或分批下載。
+			{tr("risky")}
 		</span>
 	) : stream ? (
-		<span className="block text-xs text-base-content/50">檔案較大，會先請你選存檔位置，再邊下載邊寫入。</span>
+		<span className="block text-xs text-base-content/65">{tr("streamNote")}</span>
 	) : null;
 
 	return (
-		<div className="sticky bottom-24 z-10 lg:bottom-4" role="region" aria-label="批量下載">
+		<div className="sticky bottom-24 z-10 lg:bottom-4" role="region" aria-label={tr("bulkDownload")}>
 			<div className="flex flex-wrap items-center gap-2 rounded-2xl border hairline bg-base-100/95 p-2 pl-4 shadow-lg backdrop-blur">
-				<span className="min-w-0 grow text-sm" aria-live="polite">
+				<span role="status" className="sr-only">
+					{progress ? tr("packing") : items.length ? tr("selectedSr", items.length) : ""}
+				</span>
+				<span className="min-w-0 grow text-sm">
 					{progress ? (
 						<>
-							正在打包{" "}
+							{tr("packing")}{" "}
 							<span className="tabular-nums">
 								{progress.files} / {items.length}
 							</span>
-							<span className="text-base-content/50">
+							<span className="text-base-content/65">
 								{" "}
 								· {humanSize(progress.bytes)} / {humanSize(size)}
 							</span>
 						</>
 					) : items.length ? (
 						<>
-							已選 <strong className="tabular-nums">{items.length}</strong> 個檔案 <span className="text-base-content/50">· {humanSize(size)}</span>
+							{tr("selected", items.length, <strong className="tabular-nums">{items.length}</strong>)} <span className="text-base-content/65">· {humanSize(size)}</span>
 							{note}
 						</>
 					) : (
-						<span className="text-base-content/60">勾選要下載的檔案</span>
+						<span className="text-base-content/65">{tr("pickFiles")}</span>
 					)}
-					{result?.error && !progress && <span className="block text-xs text-error">打包失敗：{result.error}</span>}
-					{!!result?.failed.length && !progress && (
-						<span className="block text-xs text-error">
-							有 {result.failed.length} 個檔案下載失敗：{result.failed.join("、")}
-						</span>
-					)}
+					<span role="alert">
+						{result?.error && !progress && <span className="block text-xs text-error">{tr("zipFailed", result.error)}</span>}
+						{!!result?.failed.length && !progress && <span className="block text-xs text-error">{tr("someFailed", result.failed)}</span>}
+					</span>
 				</span>
 				{progress ? (
 					<>
-						<progress className="progress progress-primary w-28" value={size ? progress.bytes : progress.files} max={size || items.length} />
-						<button className="btn btn-ghost btn-sm" onClick={() => abort.current?.abort()}>
-							取消
+						<progress className="progress progress-primary w-28" value={size ? progress.bytes : progress.files} max={size || items.length} aria-label={tr("packingProgress")} />
+						<button type="button" className="btn btn-ghost btn-sm" onClick={() => abort.current?.abort()}>
+							{tc("cancel")}
 						</button>
 					</>
 				) : (
 					<>
-						<button className="btn btn-ghost btn-sm" onClick={() => toggle(visibleKeys, !allVisible)} disabled={!visibleKeys.length}>
-							{allVisible ? "取消全選" : "全選"}
+						<button type="button" className="btn btn-ghost btn-sm" onClick={() => toggle(visibleKeys, !allVisible)} disabled={!visibleKeys.length}>
+							{allVisible ? tr("deselectAll") : tr("selectAll")}
 						</button>
-						<button className="btn btn-ghost btn-sm" onClick={onDone}>
-							完成
+						<button type="button" className="btn btn-ghost btn-sm" onClick={onDone}>
+							{tr("done")}
 						</button>
-						<button className={`btn btn-sm ${risky ? "btn-warning" : "btn-primary"}`} onClick={download} disabled={!items.length || tooBig}>
+						<button type="button" className={`btn btn-sm ${risky ? "btn-warning" : "btn-primary"}`} onClick={download} disabled={!items.length || tooBig}>
 							<DownloadSimpleIcon size={16} />
-							{risky ? "仍要下載" : zipping ? "下載 zip" : "下載"}
+							{risky ? tr("downloadAnyway") : zipping ? tr("downloadZip") : tc("download")}
 						</button>
 					</>
 				)}

@@ -1,10 +1,12 @@
+import { tc } from "@/i18n/common";
 import { fileUrl, humanSize } from "@/lib/moodle/files";
 import { ArrowSquareOutIcon, DownloadSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { create } from "zustand";
 import { FileIcon } from "./FileIcon";
 import type { MaterialFile } from "./materials";
+import { t as tr } from "./messages";
 
 interface PreviewState {
 	file: MaterialFile | null;
@@ -40,6 +42,8 @@ export function openFile(f: MaterialFile) {
 export function FilePreviewHost() {
 	const { file, close } = usePreview();
 	const closeBtn = useRef<HTMLButtonElement>(null);
+	const panel = useRef<HTMLElement>(null);
+	const id = useId();
 	const open = !!file;
 	useEffect(() => {
 		if (!open) return;
@@ -48,7 +52,22 @@ export function FilePreviewHost() {
 		const app = document.getElementById("app");
 		app?.setAttribute("inert", "");
 		requestAnimationFrame(() => closeBtn.current?.focus());
-		const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") close();
+			// Keep Tab inside the panel instead of escaping to the browser chrome.
+			if (e.key !== "Tab" || !panel.current) return;
+			const items = [...panel.current.querySelectorAll<HTMLElement>("a[href], button, iframe, video, audio, [tabindex]:not([tabindex='-1'])")];
+			if (!items.length) return;
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (e.shiftKey && document.activeElement === first) {
+				e.preventDefault();
+				last.focus();
+			} else if (!e.shiftKey && document.activeElement === last) {
+				e.preventDefault();
+				first.focus();
+			}
+		};
 		window.addEventListener("keydown", onKey);
 		return () => {
 			window.removeEventListener("keydown", onKey);
@@ -61,11 +80,13 @@ export function FilePreviewHost() {
 		<AnimatePresence>
 			{file && (
 				<motion.div data-overlay className="fixed inset-0 z-50 flex justify-end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-					<div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
+					<div aria-hidden className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
 					<motion.aside
+						ref={panel}
 						role="dialog"
-						aria-modal
-						aria-label={file.name}
+						aria-modal="true"
+						aria-labelledby={`${id}-name`}
+						aria-describedby={`${id}-size`}
 						initial={{ x: "100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "100%" }}
@@ -75,18 +96,23 @@ export function FilePreviewHost() {
 						<header className="flex items-center gap-3 border-b hairline px-4 py-3">
 							<FileIcon ext={file.ext} />
 							<div className="min-w-0 grow">
-								<p className="truncate text-sm font-medium">{file.name}</p>
-								<p className="text-xs text-base-content/50">{humanSize(file.size)}</p>
+								<h2 id={`${id}-name`} className="truncate text-sm font-medium" title={file.name}>
+									{file.name}
+								</h2>
+								<p id={`${id}-size`} className="text-xs text-base-content/65">
+									{humanSize(file.size)}
+								</p>
 							</div>
 							<a className="btn btn-ghost btn-sm" href={fileUrl(file.url)} target="_blank" rel="noreferrer">
 								<ArrowSquareOutIcon size={16} />
-								<span className="hidden sm:inline">新分頁</span>
+								<span className="sr-only sm:not-sr-only">{tr("newTab")}</span>
+								<span className="sr-only">{tc("openInNewTab")}</span>
 							</a>
 							<a className="btn btn-ghost btn-sm" href={fileUrl(file.url, { download: true })}>
 								<DownloadSimpleIcon size={16} />
-								<span className="hidden sm:inline">下載</span>
+								<span className="sr-only sm:not-sr-only">{tc("download")}</span>
 							</a>
-							<button ref={closeBtn} className="btn btn-ghost btn-sm btn-square" onClick={close} aria-label="關閉預覽（Esc）">
+							<button type="button" ref={closeBtn} className="btn btn-ghost btn-sm btn-square" onClick={close} aria-label={tr("closePreview")} title={tr("closePreview")}>
 								<XIcon size={18} />
 							</button>
 						</header>
@@ -102,11 +128,12 @@ export function FilePreviewHost() {
 
 function PreviewBody({ file }: { file: MaterialFile }) {
 	const src = fileUrl(file.url);
-	if (["mp4", "webm", "mov", "m4v"].includes(file.ext)) return <video src={src} controls autoPlay className="size-full bg-black object-contain" />;
+	// No autoplay: media starts only when the user presses play (WCAG 1.4.2).
+	if (["mp4", "webm", "mov", "m4v"].includes(file.ext)) return <video src={src} controls aria-label={file.name} className="size-full bg-black object-contain" />;
 	if (["mp3", "m4a", "wav"].includes(file.ext))
 		return (
 			<div className="grid size-full place-items-center">
-				<audio src={src} controls autoPlay />
+				<audio src={src} controls aria-label={file.name} />
 			</div>
 		);
 	if (file.ext === "pdf") return <PdfFrame src={src} name={file.name} />;
@@ -154,12 +181,15 @@ function PdfFrame({ src, name }: { src: string; name: string }) {
 
 	if (error)
 		return (
-			<div className="grid size-full place-items-center p-6 text-center text-sm text-base-content/60">
-				<p>
-					預覽失敗，
-					<a className="link" href={src} target="_blank" rel="noreferrer">
-						在新分頁開啟
-					</a>
+			<div className="grid size-full place-items-center p-6 text-center text-sm text-base-content/65">
+				<p role="alert">
+					{tr(
+						"previewFailed",
+						<a className="link" href={src} target="_blank" rel="noreferrer">
+							{tr("openInNewTab")}
+							<span className="sr-only">{tc("openInNewTab")}</span>
+						</a>
+					)}
 				</p>
 			</div>
 		);
@@ -167,10 +197,10 @@ function PdfFrame({ src, name }: { src: string; name: string }) {
 		return (
 			<div className="grid size-full place-items-center">
 				<div className="w-56 text-center">
-					<progress className="progress w-full" value={progress * 100 || undefined} max={100} />
-					<p className="mt-2 text-xs text-base-content/50">載入中 {progress ? `${Math.round(progress * 100)}%` : ""}</p>
+					<progress className="progress w-full" value={progress * 100 || undefined} max={100} aria-label={tr("loadingFile")} />
+					<p className="mt-2 text-xs text-base-content/65">{tr("loadingPct", progress ? `${Math.round(progress * 100)}%` : "")}</p>
 				</div>
 			</div>
 		);
-	return <iframe title={name} src={blobUrl} className="size-full" />;
+	return <iframe title={tr("previewOf", name)} src={blobUrl} className="size-full" />;
 }

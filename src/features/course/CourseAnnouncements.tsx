@@ -5,6 +5,7 @@ import { usePrefs } from "@/features/preferences/store";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { CheckIcon, MegaphoneIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
+import { t as tr } from "./messages";
 
 export function CourseAnnouncements({ course }: { course: ParsedCourse }) {
 	const ids = useMemo(() => [course.id], [course.id]);
@@ -12,6 +13,7 @@ export function CourseAnnouncements({ course }: { course: ParsedCourse }) {
 	const [kind, setKind] = useState<"news" | "general">("news");
 	const markSeen = usePrefs(s => s.markSeen);
 	const seen = usePrefs(s => s.seen);
+	const [marked, setMarked] = useState(false);
 
 	if (error) return <ErrorNote error={error} retry={refetch} />;
 	if (isPending) return <Lines n={5} />;
@@ -24,23 +26,33 @@ export function CourseAnnouncements({ course }: { course: ParsedCourse }) {
 		<div className="space-y-4">
 			<div className="flex flex-wrap items-center gap-2">
 				{general.length > 0 && (
-					<div className="join">
-						<button className={`btn join-item btn-sm ${kind === "news" ? "btn-active" : ""}`} onClick={() => setKind("news")}>
-							公告 {news.length}
+					<div className="join" role="group" aria-label={tr("postKind")}>
+						<button type="button" className={`btn join-item btn-sm ${kind === "news" ? "btn-active" : ""}`} aria-pressed={kind === "news"} onClick={() => setKind("news")}>
+							{tr("news")} {news.length}
 						</button>
-						<button className={`btn join-item btn-sm ${kind === "general" ? "btn-active" : ""}`} onClick={() => setKind("general")}>
-							討論區 {general.length}
+						<button type="button" className={`btn join-item btn-sm ${kind === "general" ? "btn-active" : ""}`} aria-pressed={kind === "general"} onClick={() => setKind("general")}>
+							{tr("general")} {general.length}
 						</button>
 					</div>
 				)}
 				{unread.length > 0 && (
-					<button className="btn btn-ghost btn-sm ml-auto" onClick={() => markSeen(unread.map(a => a.discussion))}>
+					<button
+						type="button"
+						className="btn btn-ghost btn-sm ml-auto"
+						onClick={() => {
+							markSeen(unread.map(a => a.discussion));
+							setMarked(true);
+						}}
+					>
 						<CheckIcon size={15} />
-						全部標為已讀（只在 EM3）
+						{tr("markAllRead")}
 					</button>
 				)}
+				<span role="status" className="sr-only">
+					{marked && !unread.length ? tr("markedRead") : ""}
+				</span>
 			</div>
-			{list.length ? <AnnouncementList items={list} showCourse={false} /> : <Empty icon={<MegaphoneIcon size={40} weight="duotone" />} title="還沒有任何貼文" />}
+			{list.length ? <AnnouncementList items={list} showCourse={false} /> : <Empty icon={<MegaphoneIcon size={40} weight="duotone" />} title={tr("noPosts")} />}
 		</div>
 	);
 }
