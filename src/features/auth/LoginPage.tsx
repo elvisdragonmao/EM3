@@ -1,15 +1,30 @@
+import { usePrefs } from "@/features/preferences/store";
+import { langTag } from "@/i18n";
 import { MoodleError } from "@/lib/moodle/client";
-import { DEFAULT_MOODLE_URL, MOODLE_SITES } from "@/lib/moodle/site";
+import { DEFAULT_MOODLE_URL, MOODLE_SITES, MoodleUrlError, siteName } from "@/lib/moodle/site";
 import { finishSso, registerSsoHandler, startSso } from "@/lib/moodle/sso";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { LanguageSelect } from "@/shared/ui/LanguagePicker";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowRightIcon, BellRingingIcon, CaretDownIcon, CheckIcon, CopyIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, ShieldCheckIcon, UserIcon } from "@phosphor-icons/react";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import { type FormEvent, useState } from "react";
+import { tc } from "@/i18n/common";
+import { t } from "./messages";
 import { lastSite, useSession } from "./session";
 import { Logo } from "@/shared/ui/Logo";
 
+const REMEMBER_DAYS = 90;
+const ERROR_ID = "login-error";
+
+/** Which fields an error is about, so they can be marked invalid and point at the message. */
+type ErrorField = "credentials" | "site" | "sso" | null;
+
+const HANDLERS_URL = "chrome://settings/handlers";
+
 export function LoginPage() {
 	const signIn = useSession(s => s.signIn);
+	const motionPref = usePrefs(s => s.motion);
 	const navigate = useNavigate();
 	const { next } = useSearch({ from: "/login" });
 	const [username, setUsername] = useState("");
@@ -20,7 +35,8 @@ export function LoginPage() {
 	const [remember, setRemember] = useState(true);
 	const [reveal, setReveal] = useState(false);
 	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<{ message: string; field: ErrorField } | null>(null);
+	useDocumentTitle(t("docTitle"));
 
 	const site = MOODLE_SITES.find(site => site.baseUrl === baseUrl);
 	const sso = site?.sso;
@@ -37,7 +53,9 @@ export function LoginPage() {
 			const target = next?.replace(/^#/, "");
 			await navigate({ to: target && target !== "/login" ? target : "/" });
 		} catch (err) {
-			setError(err instanceof MoodleError && err.code === "invalidlogin" ? "學號或密碼不正確" : err instanceof Error ? err.message : "登入失敗，請稍後再試");
+			if (err instanceof MoodleError && err.code === "invalidlogin") setError({ message: t("invalidLogin"), field: "credentials" });
+			else if (err instanceof MoodleUrlError || (err instanceof MoodleError && ["network", "notmoodle", "http"].includes(err.code))) setError({ message: err.message, field: "site" });
+			else setError({ message: err instanceof Error ? err.message : t("signInFailed"), field: null });
 		} finally {
 			setBusy(false);
 		}
@@ -47,222 +65,293 @@ export function LoginPage() {
 		try {
 			finishSso(ssoLink); // Check here first, so a wrong paste keeps the school picked.
 		} catch (err) {
-			return setError(err instanceof Error ? err.message : "連結格式不正確");
+			return setError({ message: err instanceof Error ? err.message : t("signInFailed"), field: "sso" });
 		}
 		void navigate({ to: "/sso", search: { u: ssoLink } });
 	};
 
+	const credentialsInvalid = error?.field === "credentials";
+	const ssoInvalid = error?.field === "sso";
+	const siteInvalid = error?.field === "site" && customSite;
+	const describedBy = (...ids: (string | false)[]) => ids.filter(Boolean).join(" ") || undefined;
+
 	return (
-		<main className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-hidden bg-base-200 px-4 py-6">
-			<Backdrop />
-			<motion.div
-				initial={{ opacity: 0, y: 24, scale: 0.98 }}
-				animate={{ opacity: 1, y: 0, scale: 1 }}
-				transition={{ type: "spring", stiffness: 260, damping: 28 }}
-				className="surface relative w-full max-w-md rounded-[1.75rem] p-7 shadow-2xl sm:p-9"
-			>
-				<div className="mb-8 flex items-center gap-3">
-					<Logo size={52} />
-					<div>
-						<h1 className="text-xl font-semibold tracking-tight">EM3</h1>
-						<p className="text-sm text-base-content/60">更快、更人類的 Moodle</p>
-					</div>
+		<MotionConfig reducedMotion={motionPref === "reduced" ? "always" : "user"}>
+			<main className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-hidden bg-base-200 px-4 pt-16 pb-6">
+				<Backdrop />
+				<div className="absolute top-3 right-3 z-10">
+					<LanguageSelect />
 				</div>
-				{!showOtherSchools && <p className="mb-5 text-sm font-medium text-base-content/70">使用陽明交通大學 E3 登入</p>}
+				<motion.div
+					initial={{ opacity: 0, y: 24, scale: 0.98 }}
+					animate={{ opacity: 1, y: 0, scale: 1 }}
+					transition={{ type: "spring", stiffness: 260, damping: 28 }}
+					className="surface relative w-full max-w-md rounded-[1.75rem] p-7 shadow-2xl sm:p-9"
+				>
+					<div className="mb-8 flex items-center gap-3">
+						<span aria-hidden className="shrink-0">
+							<Logo size={52} decorative />
+						</span>
+						<div>
+							<h1 className="text-xl font-semibold tracking-tight">EM3</h1>
+							<p className="text-sm text-base-content/65">{t("tagline")}</p>
+						</div>
+					</div>
+					{!showOtherSchools && <p className="mb-5 text-sm font-medium text-base-content/70">{t("signInWithE3")}</p>}
 
-				<form onSubmit={submit} className="space-y-4">
-					{showOtherSchools && (
-						<fieldset className="fieldset">
-							<label htmlFor="moodle-site" className="fieldset-legend">
-								學校
-							</label>
-							<select
-								id="moodle-site"
-								aria-label="選擇 Moodle 學校"
-								className="select select-lg w-full"
-								value={customSite ? "custom" : baseUrl}
-								onChange={e => {
-									const custom = e.target.value === "custom";
-									setCustomSite(custom);
-									setBaseUrl(custom ? "" : e.target.value);
-									if (MOODLE_SITES.find(site => site.baseUrl === e.target.value)?.sso) registerSsoHandler();
-								}}
-							>
-								{MOODLE_SITES.map(site => (
-									<option key={site.baseUrl} value={site.baseUrl}>
-										{site.name}
-									</option>
-								))}
-								<option value="custom">其他學校／自訂 Moodle 網址</option>
-							</select>
-							{customSite && (
-								<>
-									<input
-										type="text"
-										inputMode="url"
-										className="input input-lg mt-2 w-full"
-										autoComplete="url"
-										required
-										placeholder="https://moodle.example.edu.tw"
-										value={baseUrl}
-										onChange={e => setBaseUrl(e.target.value)}
-									/>
-									<p className="label">可貼上 Moodle 首頁或登入頁網址。</p>
-								</>
-							)}
-						</fieldset>
-					)}
-					{passwordLogin && (
-						<>
-							<label className="input input-lg w-full">
-								<UserIcon size={18} className="opacity-50" />
-								<input className="grow" autoComplete="username" inputMode="text" required placeholder="帳號或學號" value={username} onChange={e => setUsername(e.target.value)} />
-							</label>
-							<label className="input input-lg w-full pr-2">
-								<LockSimpleIcon size={18} className="opacity-50" />
-								<input
-									type={reveal ? "text" : "password"}
-									className="grow"
-									autoComplete="current-password"
-									required
-									placeholder="Moodle 密碼"
-									value={password}
-									onChange={e => setPassword(e.target.value)}
-								/>
-								<button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => setReveal(r => !r)} aria-label={reveal ? "隱藏密碼" : "顯示密碼"}>
-									{reveal ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
-								</button>
-							</label>
-						</>
-					)}
-
-					<label className="flex cursor-pointer items-center gap-2 text-sm">
-						<input type="checkbox" className="checkbox checkbox-sm" checked={remember} onChange={e => setRemember(e.target.checked)} />
-						保持登入 90 天
-					</label>
-
-					{error && (
-						<motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} role="alert" className="text-sm text-error">
-							{error}
-						</motion.p>
-					)}
-
-					{passwordLogin && (
-						<button className="btn btn-neutral btn-lg w-full" disabled={busy}>
-							{busy ? (
-								<span className="loading loading-spinner loading-sm" />
-							) : (
-								<>
-									登入
-									<ArrowRightIcon size={18} weight="bold" />
-								</>
-							)}
-						</button>
-					)}
-				</form>
-
-				{sso && (
-					<div className="mt-4 space-y-3">
-						{/* Chrome asks when the school is picked, so this sits above the button it precedes. */}
-						{"registerProtocolHandler" in navigator && (
-							<div className="flex gap-3 rounded-field border border-base-content/10 bg-base-content/5 p-3.5">
-								<BellRingingIcon size={18} weight="duotone" className="mt-0.5 shrink-0 text-primary" />
-								<div className="min-w-0 space-y-1.5">
-									<p className="text-sm leading-relaxed">瀏覽器詢問是否開啟 web+emthree 連結時，請選擇「允許」；登入完成後將自動返回 EM3。</p>
-									<p className="text-xs leading-relaxed text-base-content/60">
-										誤關詢問會被 Chrome 視為封鎖，請至
-										<button
-											type="button"
-											aria-label="複製 chrome://settings/handlers"
-											className="mx-1 inline-flex items-center gap-1 rounded-field bg-base-content/10 px-1.5 py-0.5 font-mono text-base-content/80 transition-colors hover:bg-base-content/15"
-											onClick={() =>
-												navigator.clipboard
-													.writeText("chrome://settings/handlers")
-													.then(() => {
-														setCopied(true);
-														setTimeout(() => setCopied(false), 1500);
-													})
-													// Clipboard refused: the URL stays on screen to copy by hand.
-													.catch(() => {})
-											}
-										>
-											chrome://settings/handlers
-											{copied ? <CheckIcon size={12} className="text-success" /> : <CopyIcon size={12} />}
-										</button>
-										移除封鎖後，
-										{/* A click, not a reload: the page may reopen on the remembered school without picking it again. */}
-										<button type="button" className="link" onClick={registerSsoHandler}>
-											重新詢問
-										</button>
-										。
-									</p>
-								</div>
+					<form onSubmit={submit} className="space-y-4">
+						{showOtherSchools && (
+							<div className="fieldset">
+								<label htmlFor="moodle-site" className="fieldset-legend">
+									{t("school")}
+								</label>
+								<select
+									id="moodle-site"
+									className="select select-lg w-full"
+									value={customSite ? "custom" : baseUrl}
+									onChange={e => {
+										const custom = e.target.value === "custom";
+										setCustomSite(custom);
+										setBaseUrl(custom ? "" : e.target.value);
+										if (MOODLE_SITES.find(site => site.baseUrl === e.target.value)?.sso) registerSsoHandler();
+									}}
+								>
+									{MOODLE_SITES.map(site => {
+										const { name, lang } = siteName(site);
+										return (
+											<option key={site.baseUrl} value={site.baseUrl} lang={lang === langTag() ? undefined : lang}>
+												{name}
+											</option>
+										);
+									})}
+									<option value="custom">{t("otherSchool")}</option>
+								</select>
+								{customSite && (
+									<>
+										<label htmlFor="moodle-url" className="sr-only">
+											{t("moodleUrl")}
+										</label>
+										<input
+											id="moodle-url"
+											type="text"
+											inputMode="url"
+											className="input input-lg mt-2 w-full"
+											autoComplete="url"
+											required
+											placeholder="https://moodle.example.edu.tw"
+											value={baseUrl}
+											onChange={e => setBaseUrl(e.target.value)}
+											aria-invalid={siteInvalid || undefined}
+											aria-describedby={describedBy("moodle-url-hint", siteInvalid && ERROR_ID)}
+										/>
+										<p id="moodle-url-hint" className="label">
+											{t("moodleUrlHint")}
+										</p>
+									</>
+								)}
 							</div>
 						)}
-						<button
-							type="button"
-							className={`btn w-full ${passwordLogin ? "btn-outline" : "btn-neutral btn-lg"}`}
-							disabled={busy}
-							onClick={() => {
-								try {
-									startSso(baseUrl, sso.provider, remember, next);
-								} catch {
-									setError("無法開始單一登入，請確認瀏覽器允許此網站儲存資料。");
-								}
-							}}
-						>
-							使用學校單一登入（SSO）
-						</button>
-						{/* Safari cannot register the web+emthree handler, so there the paste box is the main path. */}
-						<details open={!("registerProtocolHandler" in navigator)} className="group rounded-field border border-base-content/10">
-							<summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2.5 text-xs text-base-content/70 [&::-webkit-details-marker]:hidden">
-								單一登入完成後沒有回到 EM3？
-								<CaretDownIcon size={14} className="shrink-0 transition-transform group-open:rotate-180" />
-							</summary>
-							<div className="space-y-3 border-t border-base-content/10 px-3.5 pt-3 pb-3.5">
-								<ol className="space-y-2 text-xs leading-relaxed text-base-content/70">
-									{[`在 ${sso.pageName ?? "Moodle"} 的完成頁面，長按或按右鍵複製「${sso.linkText ?? "若應用程式沒有自動開啟，請點選這裡"}」的連結。`, "貼到下方欄位，選擇「完成登入」。"].map(
-										(step, i) => (
+						{passwordLogin && (
+							<>
+								<label className="input input-lg w-full">
+									<UserIcon size={18} className="opacity-50" />
+									<span className="sr-only">{t("username")}</span>
+									<input
+										className="grow"
+										name="username"
+										autoComplete="username"
+										autoCapitalize="none"
+										spellCheck={false}
+										inputMode="text"
+										required
+										placeholder={t("username")}
+										value={username}
+										onChange={e => setUsername(e.target.value)}
+										aria-invalid={credentialsInvalid || undefined}
+										aria-describedby={describedBy(credentialsInvalid && ERROR_ID)}
+									/>
+								</label>
+								<label className="input input-lg w-full pr-2">
+									<LockSimpleIcon size={18} className="opacity-50" />
+									{/* Named by this span alone, so the show-password button inside the label isn't read as part of it. */}
+									<span id="login-password-label" className="sr-only">
+										{t("password")}
+									</span>
+									<input
+										type={reveal ? "text" : "password"}
+										className="grow"
+										name="password"
+										autoComplete="current-password"
+										required
+										placeholder={t("password")}
+										value={password}
+										onChange={e => setPassword(e.target.value)}
+										aria-labelledby="login-password-label"
+										aria-invalid={credentialsInvalid || undefined}
+										aria-describedby={describedBy(credentialsInvalid && ERROR_ID)}
+									/>
+									<button type="button" className="btn btn-ghost btn-sm btn-circle" onClick={() => setReveal(r => !r)} aria-pressed={reveal} aria-label={t("showPassword")} title={t("showPassword")}>
+										{reveal ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+									</button>
+								</label>
+							</>
+						)}
+
+						<label className="flex cursor-pointer items-center gap-2 text-sm">
+							<input type="checkbox" className="checkbox checkbox-sm" checked={remember} onChange={e => setRemember(e.target.checked)} />
+							{t("remember", REMEMBER_DAYS)}
+						</label>
+
+						{/* Always mounted so screen readers announce the message when it appears. */}
+						<div id={ERROR_ID} role="alert">
+							{error && (
+								<motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-error">
+									{error.message}
+								</motion.p>
+							)}
+						</div>
+
+						{passwordLogin && (
+							<button type="submit" className="btn btn-neutral btn-lg w-full" disabled={busy}>
+								{busy ? (
+									<>
+										<span aria-hidden className="loading loading-spinner loading-sm" />
+										<span className="sr-only">{t("signingIn")}</span>
+									</>
+								) : (
+									<>
+										{t("signIn")}
+										<ArrowRightIcon size={18} weight="bold" />
+									</>
+								)}
+							</button>
+						)}
+					</form>
+
+					{sso && (
+						<div className="mt-4 space-y-3">
+							{/* Chrome asks when the school is picked, so this sits above the button it precedes. */}
+							{"registerProtocolHandler" in navigator && (
+								<div className="flex gap-3 rounded-field border border-base-content/10 bg-base-content/5 p-3.5">
+									<BellRingingIcon size={18} weight="duotone" className="mt-0.5 shrink-0 text-primary" />
+									<div className="min-w-0 space-y-1.5">
+										<p className="text-sm leading-relaxed">{t("ssoAllow")}</p>
+										<p className="text-xs leading-relaxed text-base-content/65">
+											{t(
+												"ssoBlocked",
+												<button
+													type="button"
+													aria-label={t("copyUrl", HANDLERS_URL)}
+													className="mx-1 inline-flex items-center gap-1 rounded-field bg-base-content/10 px-1.5 py-0.5 font-mono text-base-content/80 transition-colors hover:bg-base-content/15"
+													onClick={() =>
+														navigator.clipboard
+															.writeText(HANDLERS_URL)
+															.then(() => {
+																setCopied(true);
+																setTimeout(() => setCopied(false), 1500);
+															})
+															// Clipboard refused: the URL stays on screen to copy by hand.
+															.catch(() => {})
+													}
+												>
+													{HANDLERS_URL}
+													{copied ? <CheckIcon size={12} className="text-success" /> : <CopyIcon size={12} />}
+												</button>,
+												// A click, not a reload: the page may reopen on the remembered school without picking it again.
+												<button type="button" className="link" onClick={registerSsoHandler}>
+													{t("reask")}
+												</button>
+											)}
+										</p>
+										<p role="status" className="sr-only">
+											{copied ? tc("copied") : ""}
+										</p>
+									</div>
+								</div>
+							)}
+							<button
+								type="button"
+								className={`btn w-full ${passwordLogin ? "btn-outline" : "btn-neutral btn-lg"}`}
+								disabled={busy}
+								onClick={() => {
+									try {
+										startSso(baseUrl, sso.provider, remember, next);
+									} catch {
+										setError({ message: t("ssoStartFailed"), field: null });
+									}
+								}}
+							>
+								{t("ssoButton")}
+							</button>
+							{/* Safari cannot register the web+emthree handler, so there the paste box is the main path. */}
+							<details open={!("registerProtocolHandler" in navigator)} className="group rounded-field border border-base-content/10">
+								<summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2.5 text-xs text-base-content/70 [&::-webkit-details-marker]:hidden">
+									{t("ssoNotBack")}
+									<CaretDownIcon size={14} className="shrink-0 transition-transform group-open:rotate-180" />
+								</summary>
+								<div className="space-y-3 border-t border-base-content/10 px-3.5 pt-3 pb-3.5">
+									<ol className="space-y-2 text-xs leading-relaxed text-base-content/70">
+										{[
+											t(
+												"ssoStepCopy",
+												sso.pageName ?? "Moodle",
+												// The link text comes from the school's Moodle language pack, not from EM3.
+												sso.linkText ?? <span lang="zh-Hant-TW">若應用程式沒有自動開啟，請點選這裡</span>
+											),
+											t("ssoStepPaste")
+										].map((step, i) => (
 											<li key={i} className="flex gap-2.5">
-												<span className="grid size-5 shrink-0 place-items-center rounded-full bg-base-content/10 font-semibold tabular-nums">{i + 1}</span>
+												<span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full bg-base-content/10 font-semibold tabular-nums">
+													{i + 1}
+												</span>
 												<span>{step}</span>
 											</li>
-										)
-									)}
-								</ol>
-								<div className="join w-full">
-									<input className="input input-sm join-item grow" placeholder="web+emthree://token=…" value={ssoLink} onChange={e => setSsoLink(e.target.value)} />
-									<button type="button" className="btn btn-sm join-item" disabled={!ssoLink.trim()} onClick={pasteSsoLink}>
-										完成登入
-									</button>
+										))}
+									</ol>
+									<div className="join w-full">
+										<input
+											className="input input-sm join-item grow"
+											placeholder="web+emthree://token=…"
+											aria-label={t("ssoLinkLabel")}
+											autoComplete="off"
+											spellCheck={false}
+											value={ssoLink}
+											onChange={e => setSsoLink(e.target.value)}
+											aria-invalid={ssoInvalid || undefined}
+											aria-describedby={describedBy(ssoInvalid && ERROR_ID)}
+										/>
+										<button type="button" className="btn btn-sm join-item" disabled={!ssoLink.trim()} onClick={pasteSsoLink}>
+											{t("finishSignIn")}
+										</button>
+									</div>
 								</div>
-							</div>
-						</details>
-					</div>
-				)}
-				<button
-					type="button"
-					className="btn btn-ghost btn-sm mt-2 w-full font-normal text-base-content/60"
-					onClick={() => {
-						if (showOtherSchools) {
-							setBaseUrl(DEFAULT_MOODLE_URL);
-							setCustomSite(false);
-						}
-						setShowOtherSchools(value => !value);
-					}}
-				>
-					{showOtherSchools ? "改用陽明交通大學 E3" : "不是陽明交大的學生？選擇其他學校"}
-				</button>
+							</details>
+						</div>
+					)}
+					<button
+						type="button"
+						className="btn btn-ghost btn-sm mt-2 w-full font-normal text-base-content/65"
+						onClick={() => {
+							if (showOtherSchools) {
+								setBaseUrl(DEFAULT_MOODLE_URL);
+								setCustomSite(false);
+							}
+							setShowOtherSchools(value => !value);
+						}}
+					>
+						{showOtherSchools ? t("useNycu") : t("chooseOtherSchool")}
+					</button>
 
-				<p className="mt-6 flex gap-2 text-xs leading-relaxed text-base-content/55">
-					<ShieldCheckIcon size={16} className="mt-0.5 shrink-0" />
-					這是個靜態網頁，密碼不會傳到 EM3 伺服器。
-				</p>
-			</motion.div>
-			<Link to="/welcome" className="relative mt-6 text-sm text-base-content/55 hover:text-base-content">
-				EM3 是什麼？
-			</Link>
-		</main>
+					<p className="mt-6 flex gap-2 text-xs leading-relaxed text-base-content/65">
+						<ShieldCheckIcon size={16} className="mt-0.5 shrink-0" />
+						{t("staticSite")}
+					</p>
+				</motion.div>
+				<Link to="/welcome" className="relative mt-6 text-sm text-base-content/65 hover:text-base-content">
+					{t("whatIsEm3")}
+				</Link>
+			</main>
+		</MotionConfig>
 	);
 }
 
@@ -276,10 +365,10 @@ function Backdrop() {
 				animate={{ scale: [0.92, 1, 0.92], rotate: [-4, 2, -4] }}
 				transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
 			>
-				<Logo size={1100} className="max-w-[160vw]" />
+				<Logo size={1100} decorative className="max-w-[160vw]" />
 			</motion.div>
 			<div className="absolute inset-0 opacity-[0.07]">
-				<Logo size={1100} className="absolute top-1/2 left-1/2 max-w-[160vw] -translate-x-1/2 -translate-y-1/2" />
+				<Logo size={1100} decorative className="absolute top-1/2 left-1/2 max-w-[160vw] -translate-x-1/2 -translate-y-1/2" />
 			</div>
 		</div>
 	);
