@@ -7,6 +7,8 @@
 // - Everything else (icons, screenshots): serve the cache, refresh it in the background.
 
 const SHELL = "em3-shell-v1";
+// The dev server registers `sw.js?dev` only for push; caching would serve stale Vite modules.
+const DEV = new URL(self.location.href).searchParams.has("dev");
 const ASSETS = "em3-assets-v1";
 const MAX_ASSETS = 150;
 
@@ -31,7 +33,7 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
 	const req = event.request;
 	const url = new URL(req.url);
-	if (req.method !== "GET" || url.origin !== self.location.origin) return;
+	if (DEV || req.method !== "GET" || url.origin !== self.location.origin) return;
 
 	if (req.mode === "navigate") {
 		event.respondWith(
@@ -79,6 +81,52 @@ self.addEventListener("fetch", event => {
 				})
 				.catch(() => hit ?? Response.error());
 			return hit ?? fresh;
+		})
+	);
+});
+
+// Reminders from the EM3 server (worker/notify): the payload is { title, body, url, tag }.
+self.addEventListener("push", event => {
+	let data = {};
+	try {
+		data = event.data ? event.data.json() : {};
+	} catch {
+		data = { body: event.data ? event.data.text() : "" };
+	}
+	event.waitUntil(
+		self.registration.showNotification(data.title || "EM3", {
+			body: data.body || "",
+			icon: "/icon-192.png",
+			badge: "/icon-192.png",
+			tag: data.tag,
+			// A reminder for the same item replaces the earlier one but still alerts.
+			renotify: !!data.tag,
+			data: { url: data.url || "/" },
+			lang: data.lang
+		})
+	);
+});
+
+self.addEventListener("notificationclick", event => {
+	event.notification.close();
+	// Only EM3's own pages; anything else in the payload opens the app's home.
+	let target = new URL("/", self.location.origin);
+	try {
+		const u = new URL(event.notification.data?.url || "/", self.location.origin);
+		if (u.origin === self.location.origin) target = u;
+	} catch {
+		// Keep the home page.
+	}
+	event.waitUntil(
+		self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async windows => {
+			const open = windows.find(w => new URL(w.url).origin === target.origin);
+			if (open) {
+				await open.focus();
+				// Hash routes: navigating to the same page with a new hash just changes the route.
+				if (open.url !== target.href && "navigate" in open) await open.navigate(target.href).catch(() => {});
+				return;
+			}
+			await self.clients.openWindow(target.href);
 		})
 	);
 });
