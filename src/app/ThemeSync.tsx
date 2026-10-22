@@ -10,6 +10,7 @@ import { useEffect } from "react";
  */
 export function ThemeSync() {
 	const theme = usePrefs(s => s.theme);
+	const motion = usePrefs(s => s.motion);
 	const prefersDark = useMedia("(prefers-color-scheme: dark)");
 	useEffect(() => {
 		const root = document.documentElement;
@@ -21,6 +22,9 @@ export function ThemeSync() {
 		const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 		if (meta) meta.content = toRgb(getComputedStyle(document.body).backgroundColor) ?? meta.content;
 	}, [theme, prefersDark]);
+	useEffect(() => {
+		document.documentElement.dataset.motion = motion;
+	}, [motion]);
 	return null;
 }
 

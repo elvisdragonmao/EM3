@@ -1,16 +1,17 @@
 import { useCourseIndex, useSiteInfo } from "@/features/courses/api";
 import { useTimetable } from "@/features/timetable/schedule";
-import { CourseGlyph, resolveLook } from "@/features/courses/look";
+import { CourseGlyph, courseText, resolveLook } from "@/features/courses/look";
 import { usePrefs } from "@/features/preferences/store";
 import { classMoment, useNow } from "@/features/timetable/now";
 import { CommandPalette, useCommandPalette } from "@/shared/ui/CommandPalette";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { focusSearch, MOD_LABEL, moveListFocus, useHotkeys } from "@/shared/keyboard/hotkeys";
+import { focusSearch, isApple, MOD_LABEL, moveListFocus, useHotkeys } from "@/shared/keyboard/hotkeys";
 import { ShortcutsDialog } from "@/shared/keyboard/ShortcutsDialog";
 import { CalendarDotsIcon, EnvelopeSimpleIcon, KeyboardIcon, MagnifyingGlassIcon, TableIcon } from "@phosphor-icons/react";
 import { useMailUnread } from "@/features/mail/api";
 import { motion, MotionConfig } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { t } from "./messages";
 import { NAV, visibleNav } from "./nav";
 import { Logo } from "@/shared/ui/Logo";
 import { Avatar } from "@/shared/ui/Avatar";
@@ -26,14 +27,13 @@ export function AppShell() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const main = useRef<HTMLElement>(null);
-	const firstRender = useRef(true);
+	const shownPath = useRef(location.pathname);
 
-	// After every navigation, put keyboard focus at the top of the new page.
+	// After every navigation, put keyboard focus at the top of the new page. The
+	// first page keeps focus at the document start so Tab reaches the skip link.
 	useEffect(() => {
-		if (firstRender.current) {
-			firstRender.current = false;
-			return;
-		}
+		if (shownPath.current === location.pathname) return;
+		shownPath.current = location.pathname;
 		main.current?.focus({ preventScroll: true });
 	}, [location.pathname]);
 
@@ -54,7 +54,7 @@ export function AppShell() {
 	return (
 		<MotionConfig reducedMotion={motionPref === "reduced" ? "always" : "user"} transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.8 }}>
 			<a href="#main" onClick={e => (e.preventDefault(), main.current?.focus())} className="btn btn-sm fixed top-2 left-2 z-[60] -translate-y-20 focus:translate-y-0">
-				跳到主要內容
+				{t("skipToMain")}
 			</a>
 			<div id="app" className="min-h-dvh lg:grid lg:grid-cols-[17rem_1fr]">
 				<Sidebar onSearch={palette.open} onHelp={() => setHelpOpen(true)} />
@@ -94,7 +94,7 @@ function NavLink({ to, children, layoutGroup, hint, badge }: { to: string; child
 			{active && <motion.span layoutId={layoutGroup} className="absolute inset-0 -z-0 rounded-xl bg-base-content/[0.07]" />}
 			<span className="relative z-10 flex items-center gap-3">{children}</span>
 			{!!badge && <span className="badge badge-sm badge-primary relative z-10 ml-auto">{badge}</span>}
-			{hint && <kbd className={`kbd kbd-xs relative z-10 border-0 bg-transparent text-base-content/30 ${badge ? "" : "ml-auto"}`}>{hint}</kbd>}
+			{hint && <kbd className={`kbd kbd-xs relative z-10 border-0 bg-transparent text-base-content/65 ${badge ? "" : "ml-auto"}`}>{hint}</kbd>}
 		</Link>
 	);
 }
@@ -115,19 +115,23 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 		.sort((a, b) => Number(b.look.pinned) - Number(a.look.pinned));
 
 	return (
-		<aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r hairline bg-base-100/60 px-4 py-6 backdrop-blur-xl lg:flex">
-			<Link to="/" className="flex items-center gap-2.5 px-2">
-				<Logo size={34} />
+		<aside aria-label={t("sidebar")} className="sticky top-0 hidden h-dvh flex-col gap-6 border-r hairline bg-base-100/60 px-4 py-6 backdrop-blur-xl lg:flex">
+			<Link to="/" className="flex items-center gap-2.5 px-2" aria-label={t("home")}>
+				<Logo size={34} decorative />
 				<span className="text-lg font-semibold tracking-tight">EM3</span>
 			</Link>
 
-			<button onClick={onSearch} className="flex items-center gap-2 rounded-xl border hairline bg-base-100 px-3 py-2 text-sm text-base-content/55 transition hover:text-base-content">
+			<button
+				onClick={onSearch}
+				aria-keyshortcuts={`${isApple ? "Meta" : "Control"}+K`}
+				className="flex items-center gap-2 rounded-xl border hairline bg-base-100 px-3 py-2 text-sm text-base-content/70 transition hover:text-base-content"
+			>
 				<MagnifyingGlassIcon size={16} />
-				<span className="grow text-left">跳到課程…</span>
+				<span className="grow text-left">{t("jumpToCourse")}</span>
 				<kbd className="kbd kbd-xs">{MOD_LABEL}K</kbd>
 			</button>
 
-			<nav className="flex flex-col gap-0.5" aria-label="主要頁面">
+			<nav className="flex flex-col gap-0.5" aria-label={t("mainNav")}>
 				{visibleNav().map((n, i) => (
 					<NavLink key={n.to} to={n.to} layoutGroup="side-nav" hint={String(i + 1)} badge={n.to === "/mail" ? mailUnread : undefined}>
 						<n.icon size={19} weight={pathname === n.to || (n.to !== "/" && pathname.startsWith(n.to)) ? "fill" : "regular"} />
@@ -137,8 +141,10 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 			</nav>
 
 			<div className="flex min-h-0 flex-1 flex-col">
-				<p className="mb-2 px-3 text-xs font-medium tracking-wide text-base-content/45">{current ? `${current.label}` : "本學期"}</p>
-				<div className="-mx-1 flex-1 overflow-y-auto px-1 py-0.5 scrollbar-none">
+				<h2 id="side-courses" className="mb-2 px-3 text-xs font-medium tracking-wide text-base-content/70">
+					{current ? `${current.label}` : t("thisSemester")}
+				</h2>
+				<nav aria-labelledby="side-courses" className="-mx-1 flex-1 overflow-y-auto px-1 py-0.5 scrollbar-none">
 					{visible.map(({ c, look }) => {
 						const live = moment.now?.courseId === c.id;
 						const active = pathname.startsWith(`/courses/${c.id}`);
@@ -150,22 +156,24 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 								className={`group relative flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-sm transition-colors ${active ? "bg-base-content/[0.07] text-base-content" : "text-base-content/75 hover:bg-base-content/[0.04]"}`}
 							>
 								<CourseGlyph look={look} size="sm" />
-								<span className="truncate">{look.title}</span>
+								<span className="truncate" lang={look.titleLang}>
+									{look.title}
+								</span>
 								{live && (
-									<span className="ml-auto flex items-center gap-1 text-[0.7rem] font-medium" style={{ color: look.color }}>
-										<span className="status status-sm animate-pulse" style={{ backgroundColor: look.color }} />
-										上課中
+									<span className="ml-auto flex items-center gap-1 text-[0.7rem] font-medium" style={{ color: courseText(look.color) }}>
+										<span className="status status-sm motion-safe:animate-pulse" style={{ backgroundColor: look.color }} />
+										{t("inClass")}
 									</span>
 								)}
 							</Link>
 						);
 					})}
-				</div>
+				</nav>
 			</div>
 
-			<button onClick={onHelp} className="-mb-3 flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm text-base-content/50 hover:text-base-content">
+			<button onClick={onHelp} className="-mb-3 flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm text-base-content/70 hover:text-base-content">
 				<KeyboardIcon size={18} />
-				鍵盤快捷鍵
+				{t("shortcuts")}
 				<span className="ml-auto flex gap-0.5">
 					<kbd className="kbd kbd-xs">{MOD_LABEL}</kbd>
 					<kbd className="kbd kbd-xs">/</kbd>
@@ -173,11 +181,11 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 			</button>
 
 			{me && (
-				<Link to="/settings" className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-base-content/[0.04]">
+				<Link to="/settings" aria-label={t("account", me.fullname)} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-base-content/[0.04]">
 					<Avatar me={me} size={32} />
 					<div className="min-w-0 text-sm leading-tight">
 						<p className="truncate font-medium">{me.firstname}</p>
-						<p className="truncate text-xs text-base-content/50">{me.lastname}</p>
+						<p className="truncate text-xs text-base-content/70">{me.lastname}</p>
 					</div>
 				</Link>
 			)}
@@ -188,7 +196,7 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 function MobileMailButton() {
 	const { data } = useMailUnread();
 	return (
-		<Link to="/mail" className="btn btn-ghost btn-sm btn-circle indicator" aria-label={data ? `信件，${data} 封未讀` : "信件"}>
+		<Link to="/mail" className="btn btn-ghost btn-sm btn-circle indicator" aria-label={data ? t("mailUnread", data) : t("navMail")}>
 			{!!data && <span className="indicator-item badge badge-xs badge-primary">{data}</span>}
 			<EnvelopeSimpleIcon size={19} />
 		</Link>
@@ -198,19 +206,19 @@ function MobileMailButton() {
 function MobileTopBar({ onSearch }: { onSearch: () => void }) {
 	return (
 		<header className="surface sticky top-0 z-30 flex items-center gap-3 border-x-0 border-t-0 px-4 py-2.5 lg:hidden" style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}>
-			<Link to="/" className="flex items-center gap-2">
-				<Logo size={28} />
+			<Link to="/" className="flex items-center gap-2" aria-label={t("home")}>
+				<Logo size={28} decorative />
 				<span className="font-semibold tracking-tight">EM3</span>
 			</Link>
 			<div className="grow" />
 			<MobileMailButton />
-			<Link to="/calendar" className="btn btn-ghost btn-sm btn-circle" aria-label="行事曆">
+			<Link to="/calendar" className="btn btn-ghost btn-sm btn-circle" aria-label={t("navCalendar")}>
 				<CalendarDotsIcon size={19} />
 			</Link>
-			<Link to="/timetable" className="btn btn-ghost btn-sm btn-circle" aria-label="課表">
+			<Link to="/timetable" className="btn btn-ghost btn-sm btn-circle" aria-label={t("navTimetable")}>
 				<TableIcon size={19} />
 			</Link>
-			<button className="btn btn-ghost btn-sm btn-circle" onClick={onSearch} aria-label="搜尋課程">
+			<button className="btn btn-ghost btn-sm btn-circle" onClick={onSearch} aria-label={t("searchCourses")}>
 				<MagnifyingGlassIcon size={19} />
 			</button>
 		</header>
@@ -220,12 +228,12 @@ function MobileTopBar({ onSearch }: { onSearch: () => void }) {
 function MobileDock() {
 	const { pathname } = useLocation();
 	return (
-		<nav className="dock dock-md surface z-40 border-x-0 border-b-0 lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+		<nav aria-label={t("mainNav")} className="dock dock-md surface z-40 border-x-0 border-b-0 lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
 			{DOCK.map(to => {
 				const n = NAV.find(x => x.to === to)!;
 				const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
 				return (
-					<Link key={to} to={to} className={active ? "dock-active text-primary" : "text-base-content/60"}>
+					<Link key={to} to={to} aria-current={active ? "page" : undefined} className={active ? "dock-active text-primary" : "text-base-content/70"}>
 						<motion.span whileTap={{ scale: 0.85 }}>
 							<n.icon size={23} weight={active ? "fill" : "regular"} />
 						</motion.span>
