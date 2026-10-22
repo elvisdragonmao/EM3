@@ -1,6 +1,8 @@
+import { tc } from "@/i18n/common";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
-import { type MouseEvent, type ReactNode, useEffect, useRef } from "react";
+import { type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react";
 import { create } from "zustand";
+import { t } from "./messages";
 
 // Some things only work on the official E3 site (quizzes, for one). Rows for
 // them look like every other row, so instead of silently opening a new tab EM3
@@ -29,6 +31,7 @@ export function E3Away({ notice, className, children }: { notice: LeaveNotice; c
 	return (
 		<a href={notice.url} target="_blank" rel="noreferrer" className={className} onClick={onClick} data-nav>
 			{children}
+			<span className="sr-only">{tc("openInNewTab")}</span>
 		</a>
 	);
 }
@@ -36,25 +39,39 @@ export function E3Away({ notice, className, children }: { notice: LeaveNotice; c
 export function LeaveToE3Host() {
 	const { notice, close } = useLeave();
 	const ref = useRef<HTMLDialogElement>(null);
+	const opener = useRef<HTMLElement | null>(null);
+	const id = useId();
 	useEffect(() => {
 		const d = ref.current;
-		if (notice && d && !d.open) d.showModal();
+		if (notice && d && !d.open) {
+			opener.current = document.activeElement as HTMLElement | null;
+			d.showModal();
+		}
 		if (!notice && d?.open) d.close();
 	}, [notice]);
 
+	// Return focus to the link that opened the notice (WCAG 2.4.3).
+	const onClose = () => {
+		close();
+		opener.current?.focus?.();
+		opener.current = null;
+	};
+
 	return (
-		<dialog ref={ref} className="modal modal-bottom sm:modal-middle" onClose={close} aria-labelledby="leave-e3-title">
+		<dialog ref={ref} className="modal modal-bottom sm:modal-middle" onClose={onClose} aria-labelledby={`${id}-title`} aria-describedby={`${id}-desc`}>
 			<div className="modal-box max-w-md">
 				{notice && (
 					<>
-						<p className="flex items-center gap-1.5 text-xs font-medium text-base-content/50">
+						<p className="flex items-center gap-1.5 text-xs font-medium text-base-content/65">
 							<ArrowSquareOutIcon size={14} />
-							要在 Moodle 上完成
+							{t("leaveKicker")}
 						</p>
-						<h3 id="leave-e3-title" className="mt-1 text-lg font-semibold">
+						<h2 id={`${id}-title`} className="mt-1 text-lg font-semibold">
 							{notice.title}
-						</h3>
-						<p className="mt-3 text-sm text-base-content/75">{notice.reason}</p>
+						</h2>
+						<p id={`${id}-desc`} className="mt-3 text-sm text-base-content/75">
+							{notice.reason}
+						</p>
 						{!!notice.notes?.length && (
 							<ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-base-content/65">
 								{notice.notes.map(n => (
@@ -63,19 +80,20 @@ export function LeaveToE3Host() {
 							</ul>
 						)}
 						<div className="modal-action">
-							<button className="btn btn-ghost" onClick={close}>
-								取消
+							<button type="button" className="btn btn-ghost" onClick={() => ref.current?.close()}>
+								{tc("cancel")}
 							</button>
-							<a className="btn btn-primary" href={notice.url} target="_blank" rel="noreferrer" onClick={close} autoFocus>
-								前往 Moodle
+							<a className="btn btn-primary" href={notice.url} target="_blank" rel="noreferrer" onClick={() => ref.current?.close()} autoFocus>
+								{t("leaveGo")}
 								<ArrowSquareOutIcon size={16} />
+								<span className="sr-only">{tc("openInNewTab")}</span>
 							</a>
 						</div>
 					</>
 				)}
 			</div>
 			<form method="dialog" className="modal-backdrop">
-				<button>close</button>
+				<button>{tc("close")}</button>
 			</form>
 		</dialog>
 	);

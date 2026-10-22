@@ -10,10 +10,19 @@ const PATHS = [
 	"M157.075 88.7477C156.149 90.4582 151.857 93.9222 150.97 92.9841C150.026 91.9836 151.166 91.0111 151.657 90.1677C152.888 88.0485 155.235 83.696 155.185 81.5488C155.136 79.4015 153.765 77.7083 152.218 76.6691C151.601 76.2539 152.145 75.1071 152.399 74.6402C152.756 73.984 153.789 73.8872 154.452 73.8312C156.063 73.6936 156.397 74.6639 157.1 75.6514C160.104 79.8663 159.487 84.2833 157.075 88.7477Z"
 ];
 
-export function Logo({ size = 32, mono = false, className = "" }: { size?: number; mono?: boolean; className?: string }) {
+/** `decorative` hides the mark from assistive tech, e.g. next to the word "EM3" or as a background. */
+export function Logo({ size = 32, mono = false, decorative = false, className = "" }: { size?: number; mono?: boolean; decorative?: boolean; className?: string }) {
 	const id = useId();
 	return (
-		<svg width={size} height={(size * 151) / 181} viewBox="0 0 181 151" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} role="img" aria-label="EM3">
+		<svg
+			width={size}
+			height={(size * 151) / 181}
+			viewBox="0 0 181 151"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className}
+			{...(decorative ? { "aria-hidden": true, focusable: false } : { role: "img", "aria-label": "EM3" })}
+		>
 			{!mono && (
 				<defs>
 					<linearGradient id={id} x1="90.5" y1="0" x2="90.5" y2="151" gradientUnits="userSpaceOnUse">

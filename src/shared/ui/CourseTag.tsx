@@ -7,11 +7,13 @@ export function CourseTag({ course, link = false, className = "" }: { course: Pa
 	const look = useCourseLook(course)!;
 	const body = (
 		<>
-			<span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: look.color }} />
-			<span className="truncate">{look.title}</span>
+			<span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: look.color }} aria-hidden />
+			<span className="truncate" lang={look.titleLang}>
+				{look.title}
+			</span>
 		</>
 	);
-	const cls = `inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-base-content/70 ${className}`;
+	const cls = `inline-flex max-w-full min-w-0 items-center gap-1.5 text-xs font-medium text-base-content/70 ${className}`;
 	return link ? (
 		<Link to="/courses/$courseId" params={{ courseId: String(course.id) }} className={`${cls} hover:text-base-content`}>
 			{body}
