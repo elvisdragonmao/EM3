@@ -5,7 +5,7 @@ import { type TimetableEntry, usePrefs } from "@/features/preferences/store";
 import { PageTitle } from "@/shared/ui/States";
 import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, PaintBrushIcon } from "@phosphor-icons/react";
 import { gridArrow } from "@/shared/keyboard/hotkeys";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { tc } from "@/i18n/common";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -29,6 +29,9 @@ export function TimetablePage() {
 	const school = schoolPeriods();
 	const [brush, setBrush] = useState<number | null>(null);
 	const [status, setStatus] = useState("");
+	// Roving tabindex: Tab enters the grid on the cell the arrow keys last reached.
+	const [active, setActive] = useState("0:0");
+	const navigate = useNavigate();
 	const hintId = useId();
 	const gridHintId = useId();
 	const now = useNow();
@@ -94,22 +97,28 @@ export function TimetablePage() {
 	const weekend = blocks.some(b => b.day >= 5);
 	const days = weekend ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4];
 	const today = dayIndex(now);
+	const [activeRow, activeDay] = active.split(":").map(Number);
+	const tabCell = activeRow < shown.length && activeDay < days.length ? active : "0:0";
 	const minute = now.getHours() * 60 + now.getMinutes();
 
 	const periodTime = (code: string) => `${periodByCode(code)!.start}–${periodByCode(code)!.end}`;
 
 	function toggle(day: number, period: string) {
 		const owner = byCell.get(`${day}:${period}`);
+		// Without a brush a cell does what its class block does on click: open the course. Erasing needs a brush.
+		if (brush === null) {
+			if (owner !== undefined) void navigate({ to: "/courses/$courseId", params: { courseId: String(owner) } });
+			return;
+		}
 		const cell = t("cellLabel", day, period.toUpperCase(), periodTime(period));
 		if (owner !== undefined) {
 			const e = timetable[owner];
 			setTimetable(owner, { ...e, slots: e.slots.filter(s => !(s.day === day && periodByCode(s.period) && overlaps(s.period, period))) });
-			if (owner === brush || brush === null) {
+			if (owner === brush) {
 				setStatus(t("cleared", cell));
 				return;
 			}
 		}
-		if (brush === null) return;
 		const e = timetable[brush] ?? { slots: [] };
 		setTimetable(brush, { ...e, slots: [...e.slots, { day, period }] });
 		const course = currentCourses.find(c => c.id === brush);
@@ -201,8 +210,10 @@ export function TimetablePage() {
 											key={p.code}
 											onClick={() => toggle(d, p.code)}
 											data-cell={`${pi}:${di}`}
-											tabIndex={pi === 0 && di === 0 ? 0 : -1}
-											className={`absolute inset-x-0 ${pi === 0 ? "" : `border-t ${sectionStart.has(p.code) ? "border-base-content/25" : "hairline"}`} transition-colors active:bg-base-content/10 ${brush !== null ? "hover:bg-base-content/[0.06]" : ""}`}
+											tabIndex={`${pi}:${di}` === tabCell ? 0 : -1}
+											onFocus={() => setActive(`${pi}:${di}`)}
+											// Above the class blocks while focused, so the focus ring is never hidden under one.
+											className={`absolute inset-x-0 focus-visible:z-20 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pi === 0 ? "" : `border-t ${sectionStart.has(p.code) ? "border-base-content/25" : "hairline"}`} transition-colors active:bg-base-content/10 ${brush !== null ? "hover:bg-base-content/[0.06]" : ""}`}
 											style={{ top: rowTop.get(p.code), height: ROW }}
 											aria-label={t("cellLabel", d, p.code.toUpperCase(), periodTime(p.code), course && resolveLook(course, looks[course.id]).title)}
 										/>
