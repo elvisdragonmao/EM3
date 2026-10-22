@@ -1,12 +1,14 @@
+import { t } from "./messages";
+
 // Human date phrasing in the way Taiwanese students talk about time:
 // 「今天 14:30」「昨天 星期三」「10/5 上星期五」, falling back to a bare date
-// once the week name stops being useful.
+// once the week name stops being useful. Other locales follow the same rules
+// with their own words (see ./messages).
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const DAY = 86_400_000;
 
-export const weekdayName = (d: Date) => `星期${WEEKDAYS[d.getDay()]}`;
-export const shortWeekday = (d: Date) => `週${WEEKDAYS[d.getDay()]}`;
+export const weekdayName = (d: Date) => t("weekdays")[d.getDay()];
+export const shortWeekday = (d: Date) => t("shortWeekdays")[d.getDay()];
 
 export function startOfDay(d: Date) {
 	const x = new Date(d);
@@ -46,15 +48,15 @@ export function pastPhrase(input: Date | number, now = new Date()): string {
 	const mins = Math.floor((now.getTime() - d.getTime()) / 60_000);
 	const days = dayDiff(now, d);
 	if (days === 0) {
-		if (mins < 1) return "剛剛";
-		if (mins < 60) return `${mins} 分鐘前`;
-		return `今天 ${hhmm(d)}`;
+		if (mins < 1) return t("justNow");
+		if (mins < 60) return t("minutesAgo", mins);
+		return t("todayAt", hhmm(d));
 	}
-	if (days === 1) return `昨天 ${weekdayName(d)}`;
-	if (days === 2) return `前天 ${weekdayName(d)}`;
+	if (days === 1) return t("yesterday", weekdayName(d));
+	if (days === 2) return t("dayBeforeYesterday", weekdayName(d));
 	const weeks = weekDiff(now, d);
 	if (weeks === 0) return weekdayName(d);
-	if (weeks === 1) return `${md(d, now)} 上${weekdayName(d)}`;
+	if (weeks === 1) return t("lastWeek", md(d, now), weekdayName(d));
 	return md(d, now);
 }
 
@@ -64,13 +66,13 @@ export function futurePhrase(input: Date | number, now = new Date()): string {
 	if (d.getTime() < now.getTime()) return pastPhrase(d, now);
 	const days = dayDiff(d, now);
 	const time = hhmm(d);
-	if (days === 0) return `今天 ${time}`;
-	if (days === 1) return `明天 ${weekdayName(d)} ${time}`;
-	if (days === 2) return `後天 ${weekdayName(d)} ${time}`;
+	if (days === 0) return t("todayAt", time);
+	if (days === 1) return t("tomorrow", weekdayName(d), time);
+	if (days === 2) return t("dayAfterTomorrow", weekdayName(d), time);
 	const weeks = weekDiff(d, now);
-	if (weeks === 0) return `${weekdayName(d)} ${time}`;
-	if (weeks === 1) return `下${weekdayName(d)} ${md(d, now)} ${time}`;
-	return `${md(d, now)} ${shortWeekday(d)} ${time}`;
+	if (weeks === 0) return t("thisWeek", weekdayName(d), time);
+	if (weeks === 1) return t("nextWeek", weekdayName(d), md(d, now), time);
+	return t("later", md(d, now), shortWeekday(d), time);
 }
 
 /** Compact countdown: 「剩 3 小時」「剩 2 天」「已逾期 5 小時」. */
@@ -80,14 +82,14 @@ export function countdown(input: Date | number, now = new Date()): { text: strin
 	const abs = Math.abs(ms);
 	const h = Math.floor(abs / 3_600_000);
 	const m = Math.floor((abs % 3_600_000) / 60_000);
-	const span = h >= 48 ? `${Math.floor(h / 24)} 天` : h >= 1 ? `${h} 小時${h < 6 && m ? ` ${m} 分` : ""}` : `${Math.max(m, 1)} 分鐘`;
-	if (ms < 0) return { text: `已逾期 ${span}`, urgency: "overdue" };
-	return { text: `剩 ${span}`, urgency: h < 24 ? "critical" : h < 72 ? "soon" : "later" };
+	const span = h >= 48 ? t("days", Math.floor(h / 24)) : h >= 1 ? t("hours", h, h < 6 ? m : 0) : t("minutes", Math.max(m, 1));
+	if (ms < 0) return { text: t("overdueBy", span), urgency: "overdue" };
+	return { text: t("left", span), urgency: h < 24 ? "critical" : h < 72 ? "soon" : "later" };
 }
 
 export function fullDateTime(input: Date | number) {
 	const d = typeof input === "number" ? new Date(input * 1000) : input;
-	return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${weekdayName(d)} ${hhmm(d)}`;
+	return t("fullDateTime", `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`, d.getDay(), hhmm(d));
 }
 
 /**

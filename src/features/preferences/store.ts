@@ -1,6 +1,8 @@
 import type { Slot } from "@/features/timetable/periods";
 import { getMoodleBaseUrl } from "@/lib/moodle/client";
 import { DEFAULT_MOODLE_URL } from "@/lib/moodle/site";
+import type { LanguagePref } from "@/i18n";
+import { t } from "./messages";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -26,8 +28,12 @@ export type CalendarSpan = "week" | "twoWeeks" | "month";
 export interface Prefs {
 	/** How EM3 greets the user; empty = E3 first name. */
 	nickname: string;
+	/** UI language; "system" follows the browser. */
+	language: LanguagePref;
 	theme: string;
 	motion: MotionPref;
+	/** Single-key shortcuts (j, k, f, 1–8…); off for speech input and switch users. */
+	singleKeyShortcuts: boolean;
 	/** Range of the dashboard calendar. */
 	calendarSpan: CalendarSpan;
 	/** Range of the calendar page. */
@@ -56,8 +62,10 @@ interface PrefsActions {
 
 export const DEFAULT_PREFS: Prefs = {
 	nickname: "",
+	language: "system",
 	theme: "system",
 	motion: "full",
+	singleKeyShortcuts: true,
 	calendarSpan: "week",
 	calendarPageSpan: "month",
 	showWeekend: false,
@@ -65,7 +73,10 @@ export const DEFAULT_PREFS: Prefs = {
 	timetable: {},
 	siteTimetables: {},
 	seen: {},
-	snippets: ["做得很好！", "請補上執行結果的截圖。", "格式請依照作業說明。", "遲交，依規定扣分。"]
+	// A getter so a reset picks up phrases in the language in use at that moment.
+	get snippets() {
+		return t("snippets").slice();
+	}
 };
 
 export const PREFS_STORAGE_KEY = "em3:prefs";
@@ -106,7 +117,7 @@ export function exportPrefs(): string {
 
 export function importPrefs(json: string) {
 	const parsed = JSON.parse(json) as { app?: string; prefs?: Partial<Prefs> };
-	if (parsed.app !== "em3" || typeof parsed.prefs !== "object") throw new Error("這不是 EM3 的設定檔");
+	if (parsed.app !== "em3" || typeof parsed.prefs !== "object") throw new Error(t("notSettingsFile"));
 	const known = Object.fromEntries(Object.entries(parsed.prefs).filter(([k]) => k in DEFAULT_PREFS)) as Partial<Prefs>;
 	usePrefs.getState().replaceAll(known);
 }
