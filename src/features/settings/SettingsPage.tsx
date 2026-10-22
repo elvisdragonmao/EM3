@@ -9,14 +9,18 @@ import { ArrowsClockwiseIcon, CheckIcon, DesktopIcon, DeviceMobileIcon, Download
 import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
+import { LanguageRadios } from "@/shared/ui/LanguagePicker";
+import { t } from "./messages";
 import { ALL_THEMES, type ThemeInfo } from "./themes";
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+function Section({ id, title, desc, children }: { id: string; title: string; desc?: string; children: ReactNode }) {
 	return (
-		<section className="grid grid-cols-1 gap-4 border-t hairline py-8 first:border-t-0 first:pt-0 md:grid-cols-[14rem_1fr]">
+		<section aria-labelledby={id} className="grid grid-cols-1 gap-4 border-t hairline py-8 first:border-t-0 first:pt-0 md:grid-cols-[14rem_1fr]">
 			<div>
-				<h2 className="font-semibold">{title}</h2>
-				{desc && <p className="mt-1 text-sm text-base-content/55">{desc}</p>}
+				<h2 id={id} className="font-semibold">
+					{title}
+				</h2>
+				{desc && <p className="mt-1 text-sm text-base-content/65">{desc}</p>}
 			</div>
 			<div className="min-w-0">{children}</div>
 		</section>
@@ -44,9 +48,9 @@ export function SettingsPage() {
 	async function upload(file: File) {
 		try {
 			importPrefs(await file.text());
-			setMsg("已匯入設定");
+			setMsg(t("imported"));
 		} catch (e) {
-			setMsg(e instanceof Error ? `匯入失敗：${e.message}` : "匯入失敗");
+			setMsg(t("importFailed", e instanceof Error ? e.message : undefined));
 		}
 	}
 
@@ -59,36 +63,49 @@ export function SettingsPage() {
 
 	return (
 		<div className="max-w-4xl">
-			<PageTitle title="設定" subtitle="這裡的設定都只存在這個瀏覽器（localStorage），不會改到 Moodle。" />
+			<PageTitle title={t("title")} subtitle={t("subtitle")} />
 
-			<Section title="帳號" desc="EM3 使用 Moodle 行動版 API 的憑證登入。">
+			<Section id="settings-account" title={t("account")} desc={t("accountDesc")}>
 				<div className="card-quiet flex flex-wrap items-center gap-4 p-4">
 					{me && <Avatar me={me} size={48} />}
 					<div className="min-w-0 grow">
 						<p className="font-semibold">{me?.firstname}</p>
-						<p className="text-sm text-base-content/55">
+						<p className="text-sm text-base-content/65">
 							{me?.lastname} · {me?.username}
 						</p>
-						<p className="truncate text-xs text-base-content/40">{baseUrl}</p>
+						<p className="truncate text-xs text-base-content/65">{baseUrl}</p>
 					</div>
 					<button className="btn btn-sm" onClick={logout}>
 						<SignOutIcon size={16} />
-						登出
+						{t("signOut")}
 					</button>
 				</div>
 			</Section>
 
-			<Section title="個人" desc="首頁怎麼稱呼你、行事曆預設怎麼看。">
+			<Section id="settings-personal" title={t("personal")} desc={t("personalDesc")}>
 				<div className="space-y-4">
+					<LanguageRadios />
 					<fieldset className="fieldset">
-						<legend className="fieldset-legend">稱呼</legend>
-						<input className="input w-full max-w-xs" placeholder={me?.firstname ?? ""} value={prefs.nickname} onChange={e => prefs.set("nickname", e.target.value)} />
-						<p className="label">空白就用 Moodle 上的名字。</p>
+						<legend className="fieldset-legend">
+							<label htmlFor="settings-nickname">{t("nickname")}</label>
+						</legend>
+						<input
+							id="settings-nickname"
+							className="input w-full max-w-xs"
+							autoComplete="nickname"
+							aria-describedby="settings-nickname-hint"
+							placeholder={me?.firstname ?? ""}
+							value={prefs.nickname}
+							onChange={e => prefs.set("nickname", e.target.value)}
+						/>
+						<p id="settings-nickname-hint" className="label">
+							{t("nicknameHint")}
+						</p>
 					</fieldset>
 					{(
 						[
-							["calendarSpan", "首頁行事曆預設範圍"],
-							["calendarPageSpan", "行事曆頁預設範圍"]
+							["calendarSpan", t("dashboardSpan")],
+							["calendarPageSpan", t("calendarSpan")]
 						] as const
 					).map(([key, legend]) => (
 						<fieldset key={key} className="fieldset">
@@ -96,12 +113,12 @@ export function SettingsPage() {
 							<div className="join">
 								{(
 									[
-										["week", "一週"],
-										["twoWeeks", "兩週"],
-										["month", "一個月"]
+										["week", t("week")],
+										["twoWeeks", t("twoWeeks")],
+										["month", t("month")]
 									] as [CalendarSpan, string][]
 								).map(([k, label]) => (
-									<button key={k} className={`btn join-item btn-sm ${prefs[key] === k ? "btn-active" : ""}`} onClick={() => prefs.set(key, k)}>
+									<button key={k} aria-pressed={prefs[key] === k} className={`btn join-item btn-sm ${prefs[key] === k ? "btn-active" : ""}`} onClick={() => prefs.set(key, k)}>
 										{label}
 									</button>
 								))}
@@ -109,96 +126,112 @@ export function SettingsPage() {
 						</fieldset>
 					))}
 					<label className="flex max-w-sm cursor-pointer items-center justify-between gap-3 text-sm">
-						行事曆顯示週末
+						{t("showWeekend")}
 						<input type="checkbox" className="toggle toggle-sm" checked={prefs.showWeekend} onChange={e => prefs.set("showWeekend", e.target.checked)} />
 					</label>
 					<label className="flex max-w-sm cursor-pointer items-center justify-between gap-3 text-sm">
-						減少動畫
+						{t("reduceMotion")}
 						<input type="checkbox" className="toggle toggle-sm" checked={prefs.motion === "reduced"} onChange={e => prefs.set("motion", e.target.checked ? "reduced" : "full")} />
 					</label>
-					<p className="text-sm text-base-content/55">
-						課程的顏色、圖示、簡稱在{" "}
-						<Link to="/courses" className="link">
-							課程
-						</Link>{" "}
-						裡點圖示設定；上課時間在{" "}
-						<Link to="/timetable" className="link">
-							課表
-						</Link>
-						。
+					<div className="max-w-sm">
+						<label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
+							{t("singleKey")}
+							<input
+								type="checkbox"
+								className="toggle toggle-sm"
+								aria-describedby="settings-single-key-hint"
+								checked={prefs.singleKeyShortcuts}
+								onChange={e => prefs.set("singleKeyShortcuts", e.target.checked)}
+							/>
+						</label>
+						<p id="settings-single-key-hint" className="mt-1 text-xs text-base-content/65">
+							{t("singleKeyHint")}
+						</p>
+					</div>
+					<p className="text-sm text-base-content/65">
+						{t(
+							"lookHint",
+							<Link to="/courses" className="link">
+								{t("courses")}
+							</Link>,
+							<Link to="/timetable" className="link">
+								{t("timetable")}
+							</Link>
+						)}
 					</p>
 				</div>
 			</Section>
 
-			<Section title="主題" desc={`daisyUI 的 ${ALL_THEMES.length - 2} 個主題，加上 EM3 自己的淺色和深色。`}>
+			<Section id="settings-theme" title={t("theme")} desc={t("themeDesc", ALL_THEMES.length - 2)}>
 				<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-					<ThemeCard name="system" label="跟隨系統" active={prefs.theme === "system"} onPick={() => prefs.set("theme", "system")} />
+					<ThemeCard name="system" label={t("followSystem")} active={prefs.theme === "system"} onPick={() => prefs.set("theme", "system")} />
 					{ALL_THEMES.map(t => (
 						<ThemeCard key={t.name} name={t.name} info={t} active={prefs.theme === t.name} onPick={() => prefs.set("theme", t.name)} />
 					))}
 				</div>
 			</Section>
 
-			<Section title="App" desc="把 EM3 裝到主畫面或 Dock，會在自己的視窗打開；沒有網路時也能看上次載入的內容。">
+			<Section id="settings-app" title={t("app")} desc={t("appDesc")}>
 				<InstallApp />
 			</Section>
 
-			<Section title="資料" desc="匯出成 JSON 備份，或帶到另一台電腦。檔案內容只有 EM3 的設定，沒有密碼或登入憑證。">
+			<Section id="settings-data" title={t("data")} desc={t("dataDesc")}>
 				<div className="flex flex-wrap gap-2">
 					<button className="btn btn-sm" onClick={download}>
 						<DownloadSimpleIcon size={16} />
-						匯出設定
+						{t("exportSettings")}
 					</button>
 					<button className="btn btn-sm" onClick={() => fileInput.current?.click()}>
 						<UploadSimpleIcon size={16} />
-						匯入設定
+						{t("importSettings")}
 					</button>
-					<input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
+					<input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label={t("importSettings")} onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
 					<button
 						className="btn btn-sm"
 						onClick={async () => {
 							queryClient.clear();
 							await idbPersister.removeClient();
 							await queryClient.refetchQueries();
-							setMsg("已清除快取並重新讀取 Moodle");
+							setMsg(t("cacheCleared"));
 						}}
 					>
 						<ArrowsClockwiseIcon size={16} />
-						清除快取
+						{t("clearCache")}
 					</button>
 					<button
 						className="btn btn-sm btn-ghost text-error"
 						onClick={() => {
-							if (confirm("確定要把 EM3 的設定（主題、課程外觀、課表、已讀紀錄）全部還原？")) {
+							if (confirm(t("resetConfirm"))) {
 								prefs.reset();
-								setMsg("已還原預設值");
+								setMsg(t("resetDone"));
 							}
 						}}
 					>
 						<TrashIcon size={16} />
-						全部還原
+						{t("resetAll")}
 					</button>
 				</div>
-				{msg && (
-					<motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 text-sm text-base-content/70">
-						{msg}
-					</motion.p>
-				)}
+				<p role="status" className="mt-3 text-sm text-base-content/70 empty:hidden">
+					{msg && (
+						<motion.span key={msg} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="inline-block">
+							{msg}
+						</motion.span>
+					)}
+				</p>
 				<details className="mt-4 text-sm">
-					<summary className="cursor-pointer text-base-content/55">目前存了什麼</summary>
+					<summary className="cursor-pointer text-base-content/65">{t("stored")}</summary>
 					<ul className="mt-2 space-y-1 text-base-content/65">
-						<li>課程外觀：{Object.keys(prefs.courses).length} 門</li>
-						<li>課表：{Object.keys(prefs.timetable).length} 門</li>
-						<li>已讀公告：{Object.keys(prefs.seen).length} 則</li>
+						<li>{t("storedLooks", Object.keys(prefs.courses).length)}</li>
+						<li>{t("storedTimetable", Object.keys(prefs.timetable).length)}</li>
+						<li>{t("storedSeen", Object.keys(prefs.seen).length)}</li>
 					</ul>
 				</details>
 			</Section>
 
-			<Section title="關於" desc="EM3 是非官方的 Moodle 客戶端。">
+			<Section id="settings-about" title={t("about")} desc={t("aboutDesc")}>
 				<p className="text-sm leading-relaxed text-base-content/65">
-					EM3 是純前端的靜態網站，直接在你的瀏覽器裡呼叫所選學校的 Moodle 行動版 API，沒有中間伺服器。密碼只用來換取登入憑證，不會被儲存；憑證放在這個網站的 cookie。Moodle 的資料會快取在瀏覽器的
-					IndexedDB 裡加快下次開啟速度，登出時會一併清除。
-					{me && <span className="mt-2 block text-xs text-base-content/45">Moodle {me.release}</span>}
+					{t("aboutBody")}
+					{me && <span className="mt-2 block text-xs text-base-content/65">Moodle {me.release}</span>}
 				</p>
 			</Section>
 		</div>
@@ -239,22 +272,21 @@ function InstallApp() {
 		return (
 			<p className="flex items-center gap-2 text-sm text-base-content/70">
 				<CheckIcon size={16} className="text-success" />
-				你現在用的就是安裝好的 App。
+				{t("installed")}
 			</p>
 		);
 	if (install)
 		return (
 			<button className="btn btn-sm btn-primary" onClick={install}>
 				<DeviceMobileIcon size={16} />
-				安裝 EM3
+				{t("install")}
 			</button>
 		);
 	if (isIos())
 		return (
 			<p className="text-sm leading-relaxed text-base-content/70">
-				用 Safari 打開這一頁，點下方的分享按鈕 <ExportIcon size={15} className="inline align-[-2px]" />
-				，再選「加入主畫面」。
+				{t("iosInstall", <ExportIcon size={15} className="inline align-[-2px]" aria-hidden={false} aria-label={t("shareButton")} role="img" />)}
 			</p>
 		);
-	return <p className="text-sm leading-relaxed text-base-content/70">用瀏覽器選單裡的「安裝 EM3」或「加入主畫面」。Firefox 桌面版不支援安裝。</p>;
+	return <p className="text-sm leading-relaxed text-base-content/70">{t("browserInstall")}</p>;
 }
