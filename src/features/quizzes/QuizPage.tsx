@@ -6,7 +6,7 @@ import { cleanHtml, e3Link } from "@/lib/moodle/files";
 import { countdown, deadlinePhrase, fullDateTime } from "@/lib/time/relative";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
-import { E3Away } from "@/shared/ui/LeaveToE3";
+import { E3Away, type LeaveNotice } from "@/shared/ui/LeaveToE3";
 import { ErrorNote, Lines } from "@/shared/ui/States";
 import {
 	ArrowLeftIcon,
@@ -19,13 +19,14 @@ import {
 	HourglassIcon,
 	ListNumbersIcon,
 	MinusCircleIcon,
+	PencilSimpleLineIcon,
 	QuestionIcon,
 	TimerIcon,
 	TrophyIcon,
 	XCircleIcon
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { Link, useParams, useRouter } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	attemptQuestions,
@@ -43,6 +44,7 @@ import {
 	useQuizAttempts,
 	useQuizzes
 } from "./api";
+import { useAttemptSupport } from "./attemptApi";
 import { t } from "./messages";
 import { buildStudyPrompt, parseQuestion, PROMPT_LANG_LABEL, type PromptLang, promptLang, type ReviewOption, type ReviewQuestion } from "./review";
 
@@ -149,11 +151,7 @@ export function QuizPage() {
 				<aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-6 lg:self-start">
 					{(canAttempt || unfinished) && (
 						<section className="card-quiet p-4">
-							<E3Away notice={notice} className="btn btn-primary w-full">
-								{unfinished ? t("resumeOnE3") : attempts.length ? t("againOnE3") : t("takeOnE3")}
-								<ArrowSquareOutIcon size={16} />
-							</E3Away>
-							<p className="mt-2 text-xs text-base-content/65">{t("takenOnE3")}</p>
+							<TakeQuiz quiz={quiz} attempted={attempts.length > 0} unfinished={unfinished} notice={notice} courseId={courseId} cmid={cmid} />
 							<PracticeCopy quiz={quiz} unfinished={unfinished} used={used} courseName={courseName} lang={lang} onLang={setLang} />
 						</section>
 					)}
@@ -181,6 +179,58 @@ export function QuizPage() {
 				</aside>
 			</div>
 		</div>
+	);
+}
+
+/** Answer in EM3 when it can run the quiz; otherwise the E3 link, saying why. */
+function TakeQuiz({
+	quiz,
+	attempted,
+	unfinished,
+	notice,
+	courseId,
+	cmid
+}: {
+	quiz: Quiz;
+	attempted: boolean;
+	unfinished: QuizAttempt | undefined;
+	notice: LeaveNotice;
+	courseId: string;
+	cmid: string;
+}) {
+	const support = useAttemptSupport(quiz, unfinished);
+	const e3Label = unfinished ? t("resumeOnE3") : attempted ? t("againOnE3") : t("takeOnE3");
+	if (support.pending)
+		return (
+			<button className="btn btn-primary w-full" disabled>
+				<span className="loading loading-spinner loading-xs" />
+				{t("checkingSupport")}
+			</button>
+		);
+	if (support.error || support.blockers.length) {
+		const why = support.error ? t("loadFailed", support.error.message) : support.blockers.map(b => t("blocker", b)).join(" ");
+		return (
+			<>
+				<E3Away notice={{ ...notice, reason: why }} className="btn btn-primary w-full">
+					{e3Label}
+					<ArrowSquareOutIcon size={16} />
+				</E3Away>
+				<p className="mt-2 text-xs text-base-content/65">{why}</p>
+			</>
+		);
+	}
+	return (
+		<>
+			<Link to="/courses/$courseId/quiz/$cmid/attempt" params={{ courseId, cmid }} className="btn btn-primary w-full">
+				<PencilSimpleLineIcon size={16} />
+				{unfinished ? t("continueInEm3") : attempted ? t("againInEm3") : t("answerInEm3")}
+			</Link>
+			<p className="mt-2 text-xs text-base-content/65">{t("takenOnE3")}</p>
+			<E3Away notice={notice} className="btn btn-ghost btn-sm mt-1 w-full">
+				{t("orOnE3")}
+				<ArrowSquareOutIcon size={14} />
+			</E3Away>
+		</>
 	);
 }
 

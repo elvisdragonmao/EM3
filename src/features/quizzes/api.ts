@@ -4,9 +4,9 @@ import type { InlineFile } from "@/lib/moodle/types";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { t } from "./messages";
 
-// Quizzes are taken on E3 (EM3 never starts an attempt). EM3 reads the quiz
-// settings, the student's own attempts and, once an attempt is finished, its
-// review — the same page E3 shows after submitting, if the teacher allows it.
+// EM3 reads the quiz settings, the student's own attempts and, once an attempt
+// is finished, its review — the same page E3 shows after submitting, if the
+// teacher allows it. Answering in EM3 lives in attemptApi.ts and AttemptPage.tsx.
 
 export interface Quiz {
 	id: number;
@@ -28,6 +28,10 @@ export interface Quiz {
 	/** 1 highest, 2 average, 3 first, 4 last attempt. */
 	grademethod?: number;
 	visible?: boolean;
+	/** "sequential" quizzes can't go back to earlier pages. */
+	navmethod?: "free" | "sequential";
+	/** What happens when time runs out: submit, a grace period to submit, or abandon. */
+	overduehandling?: "autosubmit" | "graceperiod" | "autoabandon";
 }
 
 export interface QuizAttempt {
@@ -39,6 +43,8 @@ export interface QuizAttempt {
 	sumgrades: number | null;
 	timestart: number;
 	timefinish: number;
+	/** Page the student was last on (0-based). */
+	currentpage?: number;
 }
 
 export function quizzesQuery(courseIds: number[]) {
@@ -166,8 +172,8 @@ export async function attemptQuestions(attemptId: number) {
 
 /**
  * Starts a new attempt on E3: the timer (if any) starts and an attempt is used.
- * Only called after the student confirms. Quizzes that need a password or other
- * preflight data are left to E3, whose error message is shown as is.
+ * Only called after the student confirms. The practice copy leaves quizzes with
+ * a password to E3, whose error message is shown as is.
  */
 export async function startAttempt(quizId: number) {
 	return (await call<{ attempt: QuizAttempt }>("mod_quiz_start_attempt", { quizid: quizId })).attempt;

@@ -4,7 +4,7 @@ import { type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react
 import { create } from "zustand";
 import { t } from "./messages";
 
-// Some things only work on the official E3 site (quizzes, for one). Rows for
+// Some things only work on the official E3 site (Safe Exam Browser quizzes, for one). Rows for
 // them look like every other row, so instead of silently opening a new tab EM3
 // says where the link goes and why first.
 
