@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { setLocale } from "../src/i18n/index.ts";
 import { decodeSsoToken, finishSso, md5, SCHEME } from "../src/lib/moodle/sso.ts";
+
+// Error messages are translated; Node's default locale is English, so pin the source language.
+setLocale("zh-TW");
 
 test("md5 matches node:crypto, including multi-block and non-ASCII input", () => {
 	for (const text of ["", "a", "abc", "https://ecourse2.ccu.edu.tw" + "f".repeat(32), "x".repeat(55), "x".repeat(56), "x".repeat(64), "x".repeat(300), "中正大學"]) {

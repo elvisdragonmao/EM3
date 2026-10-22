@@ -1,3 +1,4 @@
+import { t } from "./messages";
 import { moodleUrl } from "./site";
 
 // Browser SSO the way the official Moodle app does it: send the user to
@@ -56,7 +57,7 @@ export function finishSso(link: string): { baseUrl: string; token: string; remem
 	} catch {
 		// Treated like no pending launch.
 	}
-	if (!pending || Date.now() - pending.at > PENDING_MS) throw new Error("單一登入已逾時，請重新開始");
+	if (!pending || Date.now() - pending.at > PENDING_MS) throw new Error(t("ssoExpired"));
 	const token = decodeSsoToken(link, pending.baseUrl, pending.passport);
 	// Kept on purpose: if the sign-in that follows fails (network), the same link can be tried again. It expires on its own.
 	return { baseUrl: pending.baseUrl, token, remember: pending.remember, next: pending.next };
@@ -75,9 +76,9 @@ export function decodeSsoToken(link: string, baseUrl: string, passport: string):
 	try {
 		parts = atob(encoded).split(":::");
 	} catch {
-		throw new Error("連結格式不正確");
+		throw new Error(t("ssoBadLink"));
 	}
-	if (parts.length < 2 || parts[0] !== md5(baseUrl + passport)) throw new Error("這個連結不是這次登入產生的，請重新按單一登入");
+	if (parts.length < 2 || parts[0] !== md5(baseUrl + passport)) throw new Error(t("ssoWrongLaunch"));
 	return parts[1];
 }
 

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setLocale } from "../src/i18n/index.ts";
 import { call, getMoodleBaseUrl, MoodleError, requestToken, setMoodleBaseUrl, setToken } from "../src/lib/moodle/client.ts";
+
+// Error messages are translated; Node's default locale is English, so pin the source language.
+setLocale("zh-TW");
 
 test("requestToken posts credentials to the selected Moodle installation", async t => {
 	let requested = "";
@@ -39,6 +43,18 @@ test("requestToken explains non-JSON responses from non-Moodle sites", async t =
 		assert.match(error.message, /不是 Moodle|行動版 API/);
 		return true;
 	});
+});
+
+test("requestToken errors follow the UI language", async t => {
+	t.mock.method(globalThis, "fetch", async () => {
+		throw new TypeError("Failed to fetch");
+	});
+	setLocale("en");
+	try {
+		await assert.rejects(requestToken("https://blocked.example.edu.tw", "student", "secret"), /mobile API/);
+	} finally {
+		setLocale("zh-TW");
+	}
 });
 
 test("call uses the Moodle URL configured for the active session", async t => {

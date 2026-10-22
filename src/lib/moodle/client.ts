@@ -1,6 +1,7 @@
 // Thin client for Moodle's mobile web service API. Compatible sites expose
 // CORS headers so this static SPA can talk to them directly without a proxy.
 
+import { t } from "./messages";
 import { DEFAULT_MOODLE_URL, moodleUrl, normalizeMoodleUrl } from "./site";
 
 let currentBaseUrl = DEFAULT_MOODLE_URL;
@@ -66,10 +67,10 @@ function isErrorPayload(data: unknown): data is { exception?: string; errorcode:
 }
 
 export async function call<T>(wsfunction: string, params: WsParams = {}, signal?: AbortSignal): Promise<T> {
-	if (!currentToken) throw new MoodleError("尚未登入", "notloggedin");
+	if (!currentToken) throw new MoodleError(t("notLoggedIn"), "notloggedin");
 	const body = encodeParams({ ...params, wstoken: currentToken, wsfunction, moodlewsrestformat: "json" });
 	const res = await fetch(`${moodleUrl(currentBaseUrl, "webservice/rest/server.php")}?wsfunction=${wsfunction}`, { method: "POST", body, signal });
-	if (!res.ok) throw new MoodleError(`Moodle 回應 HTTP ${res.status}`, "http");
+	if (!res.ok) throw new MoodleError(t("httpStatus", res.status), "http");
 	const data: unknown = await res.json();
 	if (isErrorPayload(data)) {
 		const err = new MoodleError(data.message ?? data.error ?? data.errorcode, data.errorcode);
@@ -90,14 +91,14 @@ export async function requestToken(baseUrl: string, username: string, password: 
 	try {
 		res = await fetch(moodleUrl(baseUrl, "login/token.php"), { method: "POST", body });
 	} catch {
-		throw new MoodleError("無法連線到這個 Moodle；學校可能未啟用行動版 API 或跨網域存取", "network");
+		throw new MoodleError(t("unreachable"), "network");
 	}
-	if (!res.ok) throw new MoodleError(`Moodle 回應 HTTP ${res.status}`, "http");
+	if (!res.ok) throw new MoodleError(t("httpStatus", res.status), "http");
 	let data: TokenResponse | { error: string; errorcode: string };
 	try {
 		data = (await res.json()) as TokenResponse | { error: string; errorcode: string };
 	} catch {
-		throw new MoodleError("這個網址看起來不是 Moodle，或學校未啟用行動版 API", "notmoodle");
+		throw new MoodleError(t("notMoodle"), "notmoodle");
 	}
 	if ("error" in data) throw new MoodleError(data.error, data.errorcode);
 	return data;
@@ -121,7 +122,7 @@ export interface UploadedFile {
  * existing `itemid` appends to that draft area instead.
  */
 export async function uploadToDraft(files: File[], itemid = 0, onProgress?: (fraction: number) => void): Promise<number> {
-	if (!currentToken) throw new MoodleError("尚未登入", "notloggedin");
+	if (!currentToken) throw new MoodleError(t("notLoggedIn"), "notloggedin");
 	const form = new FormData();
 	form.append("token", currentToken);
 	form.append("filearea", "draft");
@@ -133,8 +134,8 @@ export async function uploadToDraft(files: File[], itemid = 0, onProgress?: (fra
 		const xhr = new XMLHttpRequest();
 		xhr.open("POST", moodleUrl(currentBaseUrl, "webservice/upload.php"));
 		xhr.upload.onprogress = e => e.lengthComputable && onProgress?.(e.loaded / e.total);
-		xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.responseText) : reject(new MoodleError(`上傳失敗 HTTP ${xhr.status}`, "http")));
-		xhr.onerror = () => reject(new MoodleError("上傳時網路中斷", "network"));
+		xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.responseText) : reject(new MoodleError(t("uploadFailed", xhr.status), "http")));
+		xhr.onerror = () => reject(new MoodleError(t("uploadNetwork"), "network"));
 		xhr.send(form);
 	});
 	const data = JSON.parse(text) as UploadedFile[] | { error: string; errorcode: string };
