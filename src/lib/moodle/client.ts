@@ -29,23 +29,8 @@ export class MoodleError extends Error {
 	}
 }
 
-type Scalar = string | number | boolean;
-type WsValue = Scalar | WsValue[] | { [key: string]: WsValue | undefined };
-export type WsParams = { [key: string]: WsValue | undefined };
-
-/** Flattens nested params into Moodle's PHP-style `a[0][b]=c` form encoding. */
-export function encodeParams(params: WsParams, body = new URLSearchParams(), prefix = ""): URLSearchParams {
-	for (const [key, value] of Object.entries(params)) {
-		if (value === undefined) continue;
-		const name = prefix ? `${prefix}[${key}]` : key;
-		if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
-			encodeParams(value as WsParams, body, name);
-		} else {
-			body.append(name, typeof value === "boolean" ? (value ? "1" : "0") : String(value));
-		}
-	}
-	return body;
-}
+export { encodeParams, type WsParams } from "./params";
+import { encodeParams, type WsParams } from "./params";
 
 let currentToken: string | null = null;
 let onAuthLost: (() => void) | null = null;
