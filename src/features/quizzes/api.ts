@@ -2,6 +2,7 @@ import type { TaskState } from "@/features/assignments/api";
 import { call, callMany } from "@/lib/moodle/client";
 import type { InlineFile } from "@/lib/moodle/types";
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { t } from "./messages";
 
 // Quizzes are taken on E3 (EM3 never starts an attempt). EM3 reads the quiz
 // settings, the student's own attempts and, once an attempt is finished, its
@@ -39,13 +40,6 @@ export interface QuizAttempt {
 	timestart: number;
 	timefinish: number;
 }
-
-export const ATTEMPT_STATE_LABEL: Record<QuizAttempt["state"], string> = {
-	inprogress: "作答中",
-	overdue: "逾時未提交",
-	finished: "已完成",
-	abandoned: "未提交（已作廢）"
-};
 
 export function quizzesQuery(courseIds: number[]) {
 	const ids = [...courseIds].sort((a, b) => a - b);
@@ -156,14 +150,14 @@ export const formatGrade = (n: number, q?: Pick<Quiz, "decimalpoints">) => Strin
 export function quizNotes(q: Quiz, attempts: QuizAttempt[]): string[] {
 	const notes: string[] = [];
 	const finished = attempts.filter(a => a.state === "finished").length;
-	if (attempts.some(a => a.state === "inprogress" || a.state === "overdue")) notes.push("你有一次作答還沒提交，記得回去按「提交」");
-	else if (finished) notes.push(`你已經作答 ${finished} 次`);
-	if (q.timelimit) notes.push(`限時 ${Math.round(q.timelimit / 60)} 分鐘，按下開始作答後就會計時`);
-	notes.push(q.attempts ? `總共可以作答 ${q.attempts} 次` : "不限作答次數");
+	if (attempts.some(a => a.state === "inprogress" || a.state === "overdue")) notes.push(t("noteUnfinished"));
+	else if (finished) notes.push(t("noteFinished", finished));
+	if (q.timelimit) notes.push(t("noteTimeLimit", Math.round(q.timelimit / 60)));
+	notes.push(q.attempts ? t("noteAttempts", q.attempts) : t("noteUnlimited"));
 	return notes;
 }
 
-export const QUIZ_E3_REASON = "測驗要在 E3 上作答。EM3 只讀取測驗的時間和你的作答紀錄，不提供作答介面，以免計時或作答紀錄出錯。";
+export const quizE3Reason = () => t("e3Reason");
 
 /** Questions of an attempt in progress, all pages at once. Read-only, unlike mod_quiz_get_attempt_data, which also moves the attempt's current page. */
 export async function attemptQuestions(attemptId: number) {

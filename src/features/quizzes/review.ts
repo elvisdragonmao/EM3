@@ -1,3 +1,4 @@
+import { getLanguage } from "@/i18n";
 import type { Quiz, ReviewQuestionRaw } from "./api";
 
 // E3 returns each reviewed question as the HTML of its own quiz page: a form
@@ -38,15 +39,16 @@ export interface ReviewQuestion {
 
 const textOf = (el: Element | null | undefined) => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
 
-/** Text of a fragment, with images and the student's typed or picked answers spelled out. */
-function readable(el: Element): string {
+/** Text of a fragment, with images and the student's typed or picked answers spelled out (in the prompt's language). */
+function readable(el: Element, lang: PromptLang): string {
+	const s = STRINGS[lang];
 	const c = el.cloneNode(true) as Element;
 	c.querySelectorAll(".accesshide, .sr-only, script, style").forEach(n => n.remove());
-	c.querySelectorAll("img").forEach(img => img.replaceWith(`[圖片${img.getAttribute("alt") ? `：${img.getAttribute("alt")}` : ""}]`));
-	c.querySelectorAll("input[type=text], input:not([type]), textarea").forEach(i => i.replaceWith(`「${(i as HTMLInputElement).value || i.getAttribute("value") || i.textContent || "（未作答）"}」`));
-	c.querySelectorAll("select").forEach(s => {
-		const picked = s.querySelector("option[selected]");
-		s.replaceWith(`「${picked && picked.getAttribute("value") !== "0" && picked.getAttribute("value") !== "" ? textOf(picked) : "（未作答）"}」`);
+	c.querySelectorAll("img").forEach(img => img.replaceWith(s.image(img.getAttribute("alt") ?? "")));
+	c.querySelectorAll("input[type=text], input:not([type]), textarea").forEach(i => i.replaceWith(s.quote((i as HTMLInputElement).value || i.getAttribute("value") || i.textContent || s.noAnswer)));
+	c.querySelectorAll("select").forEach(sel => {
+		const picked = sel.querySelector("option[selected]");
+		sel.replaceWith(s.quote(picked && picked.getAttribute("value") !== "0" && picked.getAttribute("value") !== "" ? textOf(picked) : s.noAnswer));
 	});
 	c.querySelectorAll("p, div, br, li, tr").forEach(n => n.append("\n"));
 	return (c.textContent ?? "")
@@ -58,7 +60,8 @@ function readable(el: Element): string {
 
 const verdictOf = (cls: string): ReviewOption["verdict"] => (/\bpartiallycorrect\b/.test(cls) ? "partial" : /\bincorrect\b/.test(cls) ? "incorrect" : /\bcorrect\b/.test(cls) ? "correct" : null);
 
-export function parseQuestion(q: ReviewQuestionRaw): ReviewQuestion {
+/** `lang` only words the plain-text parts that go into the prompt (images, blanks). */
+export function parseQuestion(q: ReviewQuestionRaw, lang: PromptLang): ReviewQuestion {
 	const doc = new DOMParser().parseFromString(q.html, "text/html");
 	const root = doc.querySelector(".que") ?? doc.body;
 	root.querySelectorAll("script, .questionflag, input[type=hidden]").forEach(n => n.remove());
@@ -76,7 +79,7 @@ export function parseQuestion(q: ReviewQuestionRaw): ReviewQuestion {
 			const num = body.querySelector(".answernumber");
 			const label = textOf(num);
 			num?.remove();
-			options.push({ label, html: body.innerHTML.trim(), text: readable(body), chosen: input.hasAttribute("checked"), verdict: verdictOf(row.className) });
+			options.push({ label, html: body.innerHTML.trim(), text: readable(body, lang), chosen: input.hasAttribute("checked"), verdict: verdictOf(row.className) });
 		}
 	}
 
@@ -87,7 +90,7 @@ export function parseQuestion(q: ReviewQuestionRaw): ReviewQuestion {
 		const f = formulation.cloneNode(true) as Element;
 		f.querySelector(".qtext")?.remove();
 		f.querySelectorAll("h4.accesshide, .accesshide, .sr-only").forEach(n => n.remove());
-		formulationText = readable(f) || undefined;
+		formulationText = readable(f, lang) || undefined;
 		formulationHtml = f.innerHTML.trim() || undefined;
 	}
 
@@ -112,7 +115,7 @@ export function parseQuestion(q: ReviewQuestionRaw): ReviewQuestion {
 		mark: Number.isFinite(mark) ? mark : null,
 		maxmark: q.maxmark ?? null,
 		textHtml: qtext?.innerHTML.trim() ?? "",
-		text: qtext ? readable(qtext) : "",
+		text: qtext ? readable(qtext, lang) : "",
 		options,
 		formulationHtml,
 		formulationText,
@@ -124,20 +127,23 @@ export function parseQuestion(q: ReviewQuestionRaw): ReviewQuestion {
 
 // ---------------------------------------------------------------------------
 // Study prompt: the finished attempt, laid out for an AI to write model answers
-// and explanations, in the language the student uses E3 in.
+// and explanations, in the language the student uses EM3 in.
 
 export type PromptLang = "zh-TW" | "zh-CN" | "en" | "ja";
 
 export const PROMPT_LANG_LABEL: Record<PromptLang, string> = { "zh-TW": "繁體中文", "zh-CN": "简体中文", en: "English", ja: "日本語" };
 
-/** E3's language setting (zh_tw, en, …) first, then the browser's. */
+/**
+ * EM3's UI language: whoever reads EM3 in English wants the explanations in
+ * English too. EM3 has no Simplified Chinese UI, so a Chinese UI still looks at
+ * E3's language setting (zh_cn, …) and then the browser's for zh-CN.
+ */
 export function promptLang(moodleLang: string | undefined): PromptLang {
+	const ui = getLanguage();
+	if (ui !== "zh-TW") return ui;
 	for (const raw of [moodleLang, ...navigator.languages]) {
 		const l = (raw ?? "").toLowerCase().replace("_", "-");
-		if (!l) continue;
 		if (l.startsWith("zh")) return /cn|hans|sg/.test(l) ? "zh-CN" : "zh-TW";
-		if (l.startsWith("ja")) return "ja";
-		if (l.startsWith("en")) return "en";
 	}
 	return "zh-TW";
 }
@@ -157,6 +163,10 @@ const STRINGS: Record<
 		score: string;
 		grade: string;
 		noAnswer: string;
+		/** An image in a question, with its alt text if any. */
+		image: (alt: string) => string;
+		/** Quotes a typed or picked answer inside the question text. */
+		quote: (s: string) => string;
 		colon: string;
 		verdicts: Record<"correct" | "incorrect" | "partial" | "pending", string>;
 		practiceIntro: (course: string, quiz: string) => string;
@@ -195,7 +205,9 @@ const STRINGS: Record<
 		explanation: "老師的解說",
 		score: "得分",
 		grade: "總分",
-		noAnswer: "（未作答）"
+		noAnswer: "（未作答）",
+		image: alt => `[圖片${alt ? `：${alt}` : ""}]`,
+		quote: s => `「${s}」`
 	},
 	"zh-CN": {
 		practiceIntro: (c, q) => `我正在做「${c}」的练习测验「${q}」。老师允许我们和 AI 讨论，之后也要在报告里说明我们怎么和 AI 合作练习。请用简体中文和我一起逐题讨论：`,
@@ -227,7 +239,9 @@ const STRINGS: Record<
 		explanation: "老师的讲解",
 		score: "得分",
 		grade: "总分",
-		noAnswer: "（未作答）"
+		noAnswer: "（未作答）",
+		image: alt => `[图片${alt ? `：${alt}` : ""}]`,
+		quote: s => `「${s}」`
 	},
 	en: {
 		practiceIntro: (c, q) =>
@@ -260,7 +274,9 @@ const STRINGS: Record<
 		explanation: "Teacher's explanation",
 		score: "Score",
 		grade: "Total",
-		noAnswer: "(no answer)"
+		noAnswer: "(no answer)",
+		image: alt => `[Image${alt ? `: ${alt}` : ""}]`,
+		quote: s => `“${s}”`
 	},
 	ja: {
 		practiceIntro: (c, q) =>
@@ -293,14 +309,16 @@ const STRINGS: Record<
 		explanation: "先生の解説",
 		score: "得点",
 		grade: "合計",
-		noAnswer: "（未解答）"
+		noAnswer: "（未解答）",
+		image: alt => `[画像${alt ? `：${alt}` : ""}]`,
+		quote: s => `「${s}」`
 	}
 };
 
-const htmlText = (html: string | undefined) => {
+const htmlText = (html: string | undefined, lang: PromptLang) => {
 	if (!html) return "";
 	const d = new DOMParser().parseFromString(html, "text/html");
-	return readable(d.body);
+	return readable(d.body, lang);
 };
 
 /**
@@ -344,9 +362,9 @@ export function buildStudyPrompt({
 			out.push(`${s.answer}${c.trim()}`, q.formulationText, "");
 		}
 		if (q.rightAnswer) out.push(`${s.right}${c}${q.rightAnswer.replace(/^[^:：]*[:：]\s*/, "")}`);
-		const fb = htmlText(q.specificFeedback);
+		const fb = htmlText(q.specificFeedback, lang);
 		if (fb) out.push(`${s.feedback}${c}${fb}`);
-		const gen = htmlText(q.generalFeedback);
+		const gen = htmlText(q.generalFeedback, lang);
 		if (gen) out.push(`${s.explanation}${c}${gen}`);
 		out.push("");
 	});
