@@ -10,7 +10,7 @@
 		"not_found_handling": "single-page-application",
 		"run_worker_first": ["/api/*"]
 	},
-	"d1_databases": [{ "binding": "DB", "database_name": "em3", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }],
+	"d1_databases": [{ "binding": "DB", "database_name": "em3", "database_id": "0a8408de-e98b-470d-bd87-0834df81a456", "migrations_dir": "migrations" }],
 	// Reminders and scheduled grade releases.
 	"triggers": { "crons": ["*/15 * * * *"] },
 	"observability": { "enabled": true },
