@@ -358,7 +358,7 @@ export function LandingPage() {
 								<Lines lines={t("privacyTitle")} />
 							</motion.h2>
 							<motion.ul {...reveal} className="space-y-6 text-[1.05rem] leading-relaxed text-base-content/70 lg:col-span-8">
-								{(["noBackend", "noPassword", "noAutoRead"] as const).map(key => {
+								{(["dataChoice", "noPassword", "noAutoRead"] as const).map(key => {
 									const [lead, body] = t(key);
 									return (
 										<li key={key}>

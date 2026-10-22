@@ -65,9 +65,9 @@ export const t = defineMessages({
 		themesBody: "daisyUI 的全部主題，加上 EM3 自己的淺色和深色。現在就可以試，這一頁會跟著變。",
 		themesGroup: "主題",
 		followSystem: "跟隨系統",
-		privacyTitle: ["你的帳號，", "只跟 Moodle 說話"],
-		noBackend: ["沒有後端。", "EM3 是一個靜態網頁，瀏覽器直接呼叫所選學校的 Moodle 行動版 API，中間沒有任何伺服器。"],
-		noPassword: ["不存密碼。", "密碼只用來向 Moodle 換一組登入憑證，憑證和學校網址放在這個網站的 cookie，登出就清掉。"],
+		privacyTitle: ["你的帳號，", "你決定放在哪裡"],
+		dataChoice: ["兩個版本，你選。", "本機版的瀏覽器直接呼叫學校的 Moodle，完全不經過 EM3 伺服器。伺服器版為了提醒、同步和助教協作，會把登入憑證加密保存在 EM3 伺服器，隨時可以在設定裡刪除。"],
+		noPassword: ["不存密碼。", "密碼只會送到學校的 Moodle，用來換一組登入憑證；憑證放在這個網站的 cookie，登出就清掉。"],
 		noAutoRead: ["不替你按已讀。", "公告的已讀狀態只記在你的瀏覽器（站內信例外，打開時會像在 E3 一樣標為已讀）；EM3 不會在你按下繳交之前碰你的作業，老師的評分也要按下儲存才會寫入。"],
 		openSource: "程式碼全部公開。",
 		openSourceBody: (link: ReactNode) => <>{link}，有疑慮可以自己看，也可以自己架一份。</>,
@@ -148,12 +148,12 @@ export const t = defineMessages({
 		themesBody: "Every daisyUI theme, plus EM3's own light and dark. Try one now and this page changes with it.",
 		themesGroup: "Theme",
 		followSystem: "Match system",
-		privacyTitle: ["Your account", "only talks to Moodle"],
-		noBackend: ["No backend.", " EM3 is a static website. Your browser calls your school's Moodle mobile API directly, with no server in between."],
-		noPassword: [
-			"No stored passwords.",
-			" Your password is only used to get a sign-in token from Moodle. The token and your school's address live in this site's cookie and are cleared when you sign out."
+		privacyTitle: ["Your account,", "where you choose"],
+		dataChoice: [
+			"Two versions, your call.",
+			" In the local version your browser talks to your school's Moodle directly and never to the EM3 server. For reminders, sync and TA collaboration, the server version keeps your sign-in token encrypted on the EM3 server; you can delete it in Settings at any time."
 		],
+		noPassword: ["No stored passwords.", " Your password only ever goes to your school's Moodle, to get a sign-in token. The token lives in this site's cookie and is cleared when you sign out."],
 		noAutoRead: [
 			"Nothing gets marked read behind your back.",
 			" Which announcements you've read is kept in your browser only (messages are the exception: opening one marks it read, just like on E3). EM3 won't touch your submission until you press Submit, and teachers' grades are written only when they press Save."
@@ -237,12 +237,12 @@ export const t = defineMessages({
 		themesBody: "daisyUI の全テーマに、EM3 独自のライトとダークを加えました。今すぐ試せます。このページも一緒に切り替わります。",
 		themesGroup: "テーマ",
 		followSystem: "システムに合わせる",
-		privacyTitle: ["あなたのアカウントは", "Moodle とだけ話す"],
-		noBackend: ["バックエンドなし。", "EM3 は静的なウェブサイトです。ブラウザが選んだ学校の Moodle モバイル API を直接呼び出し、間にサーバーはありません。"],
-		noPassword: [
-			"パスワードは保存しません。",
-			"パスワードは Moodle からログイントークンを受け取るためだけに使います。トークンと学校の URL はこのサイトの Cookie に保存され、ログアウトすると消去されます。"
+		privacyTitle: ["あなたのアカウントの置き場所は", "あなたが決める"],
+		dataChoice: [
+			"2 つのバージョンから選べます。",
+			"ローカル版はブラウザが学校の Moodle と直接やり取りし、EM3 サーバーには一切接続しません。サーバー版は通知・同期・TA の協力機能のため、ログイン用トークンを暗号化して EM3 サーバーに保存します。設定からいつでも削除できます。"
 		],
+		noPassword: ["パスワードは保存しません。", "パスワードは学校の Moodle にだけ送られ、ログイントークンの取得に使われます。トークンはこのサイトの Cookie に保存され、ログアウトすると消去されます。"],
 		noAutoRead: [
 			"勝手に既読にしません。",
 			"お知らせの既読状態はブラウザの中だけに記録します（メッセージは例外で、E3 と同じく開くと既読になります）。EM3 が提出物に触れるのは提出ボタンを押したときだけ。教員の評定も保存を押すまで書き込まれません。"
@@ -304,8 +304,8 @@ export const t = defineMessages({
 		themesBody: "🌼🎨 + ☀️🌙 · 👆 → 🖼️🔄",
 		themesGroup: "🎨",
 		followSystem: "🖥️",
-		privacyTitle: ["👤", "↔️🎓"],
-		noBackend: ["🚫🖥️", " 🌐📄 → 🎓📱 · 🙅🖥️"],
+		privacyTitle: ["👤", "📱 / 🖥️ ❓"],
+		dataChoice: ["📱 / 🖥️", " 📱 → 🎓 · 🖥️ 🔑🔒 → 🔔🔄🤝 · ⚙️🗑️"],
 		noPassword: ["🚫💾🔒", " 🔒 → 🎟️ · 🍪 · 🚪👋 → 🗑️"],
 		noAutoRead: ["🚫👁️✅", " 📢👁️ → 🌐 · ✉️👁️ = ✅ · 📝🙅 → 📤 · 💯🙅 → 💾"],
 		openSource: "📖🔓",

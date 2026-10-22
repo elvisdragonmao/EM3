@@ -20,7 +20,7 @@ export const t = defineMessages({
 		signInFailed: "登入失敗，請稍後再試",
 		useNycu: "改用陽明交通大學 E3",
 		chooseOtherSchool: "不是陽明交大的學生？選擇其他學校",
-		staticSite: "這是個靜態網頁，密碼不會傳到 EM3 伺服器。",
+		staticSite: "密碼只會送到學校的 Moodle，不會傳到 EM3 伺服器。",
 		whatIsEm3: "EM3 是什麼？",
 		ssoAllow: "瀏覽器詢問是否開啟 web+emthree 連結時，請選擇「允許」；登入完成後將自動返回 EM3。",
 		ssoBlocked: (copy: ReactNode, reask: ReactNode) => (
@@ -63,7 +63,7 @@ export const t = defineMessages({
 		signInFailed: "Couldn't sign in. Please try again later.",
 		useNycu: "Use NYCU E3 instead",
 		chooseOtherSchool: "Not at NYCU? Choose another school",
-		staticSite: "This is a static website. Your password is never sent to an EM3 server.",
+		staticSite: "Your password only goes to your school's Moodle, never to the EM3 server.",
 		whatIsEm3: "What is EM3?",
 		ssoAllow: "When the browser asks whether to open web+emthree links, choose Allow. EM3 opens again once you've signed in.",
 		ssoBlocked: (copy: ReactNode, reask: ReactNode) => (
@@ -106,7 +106,7 @@ export const t = defineMessages({
 		signInFailed: "ログインできませんでした。しばらくしてからもう一度お試しください。",
 		useNycu: "陽明交通大学 E3 に戻す",
 		chooseOtherSchool: "陽明交通大学以外の学生はこちらから学校を選択",
-		staticSite: "これは静的なウェブサイトです。パスワードが EM3 のサーバーに送られることはありません。",
+		staticSite: "パスワードは学校の Moodle にだけ送られ、EM3 のサーバーには送られません。",
 		whatIsEm3: "EM3 とは？",
 		ssoAllow: "ブラウザに web+emthree リンクを開くか聞かれたら「許可」を選んでください。ログインが終わると EM3 に戻ります。",
 		ssoBlocked: (copy: ReactNode, reask: ReactNode) => (
@@ -149,7 +149,7 @@ export const t = defineMessages({
 		signInFailed: "🔑💥 · ⏳🔁",
 		useNycu: "🔙🏫",
 		chooseOtherSchool: "🏫❓➡️",
-		staticSite: "🌐📄 · 🔒🚫🖥️",
+		staticSite: "🔒 → 🎓 · 🚫🖥️",
 		whatIsEm3: "❓",
 		ssoAllow: "🌐❓ web+emthree → ✅ · 🔙 EM3",
 		ssoBlocked: (copy: ReactNode, reask: ReactNode) => (

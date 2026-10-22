@@ -53,7 +53,7 @@ export const t = defineMessages({
 		about: "關於",
 		aboutDesc: "EM3 是非官方的 Moodle 客戶端。",
 		aboutBody:
-			"EM3 是純前端的靜態網站，直接在你的瀏覽器裡呼叫所選學校的 Moodle 行動版 API，沒有中間伺服器。密碼只用來換取登入憑證，不會被儲存；憑證放在這個網站的 cookie。Moodle 的資料會快取在瀏覽器的 IndexedDB 裡加快下次開啟速度，登出時會一併清除。",
+			"EM3 的瀏覽器端直接呼叫所選學校的 Moodle 行動版 API。本機版不連 EM3 伺服器；伺服器版另外把登入憑證加密保存在 EM3 伺服器，用來提醒、同步和助教協作。密碼只用來換取登入憑證，不會被儲存；憑證放在這個網站的 cookie。Moodle 的資料會快取在瀏覽器的 IndexedDB 裡加快下次開啟速度，登出時會一併清除。",
 		installed: "你現在用的就是安裝好的 App。",
 		install: "安裝 EM3",
 		iosInstall: (share: ReactNode) => <>用 Safari 打開這一頁，點下方的分享按鈕 {share}，再選「加入主畫面」。</>,
@@ -111,7 +111,7 @@ export const t = defineMessages({
 		about: "About",
 		aboutDesc: "EM3 is an unofficial Moodle client.",
 		aboutBody:
-			"EM3 is a static, front-end-only site. Your browser calls your school's Moodle mobile API directly, with no server in between. Your password is only exchanged for a sign-in token and never stored; the token lives in this site's cookie. Moodle data is cached in the browser's IndexedDB so the next visit opens faster, and is cleared when you sign out.",
+			"Your browser calls your school's Moodle mobile API directly. The local version never contacts the EM3 server; the server version also keeps your sign-in token encrypted there for reminders, sync and TA collaboration. Your password is only exchanged for a sign-in token and never stored; the token lives in this site's cookie. Moodle data is cached in the browser's IndexedDB so the next visit opens faster, and is cleared when you sign out.",
 		installed: "You're using the installed app.",
 		install: "Install EM3",
 		iosInstall: (share: ReactNode) => <>Open this page in Safari, tap the Share button {share}, then choose “Add to Home Screen”.</>,
@@ -169,7 +169,7 @@ export const t = defineMessages({
 		about: "このアプリについて",
 		aboutDesc: "EM3 は非公式の Moodle クライアントです。",
 		aboutBody:
-			"EM3 はフロントエンドだけの静的サイトで、ブラウザから選んだ学校の Moodle モバイル API を直接呼び出します。中継サーバーはありません。パスワードはトークンの取得にだけ使い、保存しません。トークンはこのサイトの Cookie に保存されます。Moodle のデータは次回すばやく開けるようブラウザの IndexedDB にキャッシュされ、ログアウト時に消去されます。",
+			"EM3 はブラウザから選んだ学校の Moodle モバイル API を直接呼び出します。ローカル版は EM3 サーバーに接続しません。サーバー版は通知・同期・TA の協力機能のため、ログイン用トークンを暗号化して EM3 サーバーにも保存します。パスワードはトークンの取得にだけ使い、保存しません。トークンはこのサイトの Cookie に保存されます。Moodle のデータは次回すばやく開けるようブラウザの IndexedDB にキャッシュされ、ログアウト時に消去されます。",
 		installed: "インストール済みのアプリを使用中です。",
 		install: "EM3 をインストール",
 		iosInstall: (share: ReactNode) => <>Safari でこのページを開き、下部の共有ボタン {share} をタップして「ホーム画面に追加」を選びます。</>,
@@ -226,7 +226,7 @@ export const t = defineMessages({
 		storedSeen: (n: number) => `📢👀 ${n}`,
 		about: "ℹ️",
 		aboutDesc: "🎓🔓",
-		aboutBody: "💻➡️🎓 · 🚫🖥️ · 🔑🍪 · 💾⚡ · 🚪🧹",
+		aboutBody: "💻➡️🎓 · 📱🚫🖥️ · 🖥️🔑🔒 · 🔑🍪 · 💾⚡ · 🚪🧹",
 		installed: "📱✅",
 		install: "📲",
 		iosInstall: (share: ReactNode) => <>🧭 ➡️ {share} ➡️ ➕🏠</>,
