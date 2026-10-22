@@ -1,4 +1,6 @@
 import type { Slot } from "@/features/timetable/periods";
+import { getMoodleBaseUrl } from "@/lib/moodle/client";
+import { DEFAULT_MOODLE_URL } from "@/lib/moodle/site";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -35,8 +37,10 @@ export interface Prefs {
 	snippets: string[];
 	/** Course ids → appearance. */
 	courses: Record<string, CourseLook>;
-	/** Course ids → weekly slots. */
+	/** NYCU course ids → weekly slots (the original, single-school store). */
 	timetable: Record<string, TimetableEntry>;
+	/** Other schools: Moodle URL → course ids → weekly slots. Course ids and period codes only mean something on their own site. */
+	siteTimetables: Record<string, Record<string, TimetableEntry>>;
 	/** Announcement discussion ids the user has opened in EM3 (local only). */
 	seen: Record<string, number>;
 }
@@ -59,6 +63,7 @@ export const DEFAULT_PREFS: Prefs = {
 	showWeekend: false,
 	courses: {},
 	timetable: {},
+	siteTimetables: {},
 	seen: {},
 	snippets: ["做得很好！", "請補上執行結果的截圖。", "格式請依照作業說明。", "遲交，依規定扣分。"]
 };
@@ -74,10 +79,11 @@ export const usePrefs = create<Prefs & PrefsActions>()(
 			setCourse: (id, patch) => set(s => ({ courses: { ...s.courses, [id]: { ...s.courses[id], ...patch } } })),
 			setTimetable: (id, entry) =>
 				set(s => {
-					const next = { ...s.timetable };
+					const site = getMoodleBaseUrl();
+					const next = { ...(site === DEFAULT_MOODLE_URL ? s.timetable : s.siteTimetables[site]) };
 					if (entry && entry.slots.length) next[id] = entry;
 					else delete next[id];
-					return { timetable: next };
+					return site === DEFAULT_MOODLE_URL ? { timetable: next } : { siteTimetables: { ...s.siteTimetables, [site]: next } };
 				}),
 			markSeen: ids =>
 				set(s => {

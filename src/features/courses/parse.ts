@@ -53,6 +53,12 @@ export function parseCourse(c: EnrolledCourse): ParsedCourse {
 		const { zh, en } = splitBilingual(m[3]);
 		return { id: c.id, raw: c, semester: parseSemester(m[1]), code: m[2], name: zh, nameEn: en, kind: "semester" };
 	}
+	// CCU keeps the semester in the shortname: `115_1_4105402_01` → 115 學年度第 1 學期, course 4105402.
+	const ccu = /^(\d{3})_([12])_([0-9A-Z]+)_\d+$/i.exec(c.shortname ?? "");
+	if (ccu) {
+		const { zh, en } = splitBilingual(full);
+		return { id: c.id, raw: c, semester: parseSemester(ccu[1] + ccu[2]), code: ccu[3], name: zh, nameEn: en, kind: "semester" };
+	}
 	let title = full;
 	let kind: CourseKind = "other";
 	if (/微學分/.test(full)) {

@@ -1,4 +1,5 @@
 import { useCourseIndex, useSiteInfo } from "@/features/courses/api";
+import { useTimetable } from "@/features/timetable/schedule";
 import { CourseGlyph, resolveLook } from "@/features/courses/look";
 import { usePrefs } from "@/features/preferences/store";
 import { classMoment, useNow } from "@/features/timetable/now";
@@ -102,7 +103,7 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 	const { data: mailUnread } = useMailUnread();
 	const { currentCourses, current } = useCourseIndex();
 	const prefs = usePrefs(s => s.courses);
-	const timetable = usePrefs(s => s.timetable);
+	const timetable = useTimetable();
 	const now = useNow();
 	const moment = classMoment(timetable, now);
 	const { data: me } = useSiteInfo();

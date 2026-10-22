@@ -1,8 +1,8 @@
 import type { CourseTab } from "@/app/router";
+import { useTimetable } from "@/features/timetable/schedule";
 import { useCourseIndex } from "@/features/courses/api";
 import { AppearanceDialog } from "@/features/courses/AppearanceDialog";
 import { CourseGlyph, useCourseLook } from "@/features/courses/look";
-import { usePrefs } from "@/features/preferences/store";
 import { classMoment, useNow } from "@/features/timetable/now";
 import { DAY_LABELS, periodByCode, slotBlocks } from "@/features/timetable/periods";
 import { syllabusUrl } from "@/features/timetable/import";
@@ -35,8 +35,8 @@ export function CoursePage() {
 	const { byId, isPending, error } = useCourseIndex();
 	const course = byId.get(Number(courseId));
 	const look = useCourseLook(course);
-	const entry = usePrefs(s => s.timetable[courseId]);
-	const timetable = usePrefs(s => s.timetable);
+	const timetable = useTimetable();
+	const entry = timetable[courseId];
 	const now = useNow();
 	const [editing, setEditing] = useState(false);
 	const teaching = useIsTeaching(Number(courseId));

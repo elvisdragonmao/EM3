@@ -1,4 +1,5 @@
 import { type Announcement, cleanAuthor, postTime, useAnnouncements } from "@/features/announcements/api";
+import { useTimetable } from "@/features/timetable/schedule";
 import { TASK_STATE_LABEL } from "@/features/assignments/api";
 import { isOpenTask, type Task, useActiveCourses, useTasks } from "@/features/assignments/tasks";
 import { CalendarBoard, TaskAnchor, TaskLine } from "@/features/calendar/Board";
@@ -119,7 +120,7 @@ function Greeting({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
 
 /** The class happening now (or next), with its materials, live exercises and announcements one tap away. */
 function NowCard({ courses, tasks }: { courses: ParsedCourse[]; tasks: Task[] }) {
-	const timetable = usePrefs(s => s.timetable);
+	const timetable = useTimetable();
 	const now = useNow();
 	const moment = classMoment(timetable, now);
 	const block = moment.now ?? moment.next;

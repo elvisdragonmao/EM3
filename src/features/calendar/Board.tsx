@@ -1,4 +1,5 @@
 import type { Task } from "@/features/assignments/tasks";
+import { useTimetable } from "@/features/timetable/schedule";
 import { defaultColor, resolveLook } from "@/features/courses/look";
 import { type CalendarSpan, usePrefs } from "@/features/preferences/store";
 import { blocksFor } from "@/features/timetable/now";
@@ -37,7 +38,7 @@ export function CalendarBoard({ tasks, compact = false, spanKey = "calendarSpan"
 	const span = usePrefs(s => s[spanKey]);
 	const setPref = usePrefs(s => s.set);
 	const showWeekend = usePrefs(s => s.showWeekend);
-	const timetable = usePrefs(s => s.timetable);
+	const timetable = useTimetable();
 	const looks = usePrefs(s => s.courses);
 	const [anchor, setAnchor] = useState(() => new Date());
 	const [dir, setDir] = useState(0);
