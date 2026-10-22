@@ -4,6 +4,8 @@ import { useCourseIndex } from "@/features/courses/api";
 import { cleanHtml, e3Link, fileExt, humanSize } from "@/lib/moodle/files";
 import type { InlineFile } from "@/lib/moodle/types";
 import { countdown, deadlinePhrase, fullDateTime } from "@/lib/time/relative";
+import { tc } from "@/i18n/common";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago } from "@/shared/ui/Time";
@@ -11,6 +13,7 @@ import { ArrowLeftIcon, ArrowSquareOutIcon, ChatTextIcon, ClockIcon, HourglassIc
 import { useParams, useRouter } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { assignRules, submissionFiles, TASK_STATE_LABEL, taskState, useAssignments, useSubmissionStatus } from "./api";
+import { t } from "./messages";
 import { SubmitPanel } from "./SubmitPanel";
 
 export const toMaterialFile = (f: InlineFile) => ({ key: f.fileurl, name: f.filename, url: f.fileurl, size: f.filesize, mime: f.mimetype, ext: fileExt(f.filename), time: f.timemodified, path: "/" });
@@ -22,11 +25,11 @@ export function FileChips({ files }: { files: InlineFile[] }) {
 				const mf = toMaterialFile(f);
 				return (
 					<li key={f.fileurl}>
-						<button onClick={() => openFile(mf)} className="flex w-full items-center gap-3 rounded-xl border hairline bg-base-100 px-3 py-2.5 text-left hover:bg-base-content/[0.03]">
+						<button type="button" onClick={() => openFile(mf)} className="flex w-full items-center gap-3 rounded-xl border hairline bg-base-100 px-3 py-2.5 text-left hover:bg-base-content/[0.03]">
 							<FileIcon ext={mf.ext} size={26} />
 							<span className="min-w-0">
 								<span className="block truncate text-sm font-medium">{f.filename}</span>
-								<span className="text-xs text-base-content/50">{humanSize(f.filesize)}</span>
+								<span className="text-xs text-base-content/65">{humanSize(f.filesize)}</span>
 							</span>
 						</button>
 					</li>
@@ -45,10 +48,11 @@ export function AssignmentPage() {
 	const assignments = useAssignments(ids);
 	const a = assignments.data?.find(x => x.cmid === Number(cmid));
 	const status = useSubmissionStatus(a?.id);
+	useDocumentTitle(a?.name);
 
 	if (assignments.error) return <ErrorNote error={assignments.error} retry={assignments.refetch} />;
 	if (assignments.isPending || (a && status.isPending)) return <Lines n={6} />;
-	if (!a) return <p className="py-20 text-center text-base-content/60">找不到這份作業。</p>;
+	if (!a) return <p className="py-20 text-center text-base-content/65">{t("notFound")}</p>;
 
 	const rules = assignRules(a);
 	const state = taskState(a, status.data);
@@ -63,9 +67,9 @@ export function AssignmentPage() {
 
 	return (
 		<div className="mx-auto max-w-5xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button type="button" onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
-				返回
+				{t("back")}
 			</button>
 
 			<header className="mb-6">
@@ -76,7 +80,7 @@ export function AssignmentPage() {
 						{TASK_STATE_LABEL[state]}
 					</span>
 					{cd && (state === "todo" || state === "late") && (
-						<span className={`text-sm ${cd.urgency === "critical" || cd.urgency === "overdue" ? "text-error" : "text-base-content/60"}`}>{cd.text}</span>
+						<span className={`text-sm ${cd.urgency === "critical" || cd.urgency === "overdue" ? "text-error" : "text-base-content/65"}`}>{cd.text}</span>
 					)}
 				</div>
 			</header>
@@ -84,28 +88,28 @@ export function AssignmentPage() {
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
 				<div className="min-w-0 space-y-6">
 					<dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-						<Fact icon={<ClockIcon size={16} />} label="截止" value={due ? deadlinePhrase(due) : "沒有截止日"} hint={due ? fullDateTime(due) : undefined} />
+						<Fact icon={<ClockIcon size={16} />} label={t("due")} value={due ? deadlinePhrase(due) : t("noDue")} hint={due ? fullDateTime(due) : undefined} />
 						<Fact
 							icon={<LockIcon size={16} />}
-							label="最晚可補交"
-							value={a.cutoffdate ? deadlinePhrase(a.cutoffdate) : due ? "沒有限制" : "—"}
-							hint={a.cutoffdate ? fullDateTime(a.cutoffdate) : "逾期後仍可繳交（會標示遲交）"}
+							label={t("cutoff")}
+							value={a.cutoffdate ? deadlinePhrase(a.cutoffdate) : due ? t("noLimit") : "—"}
+							hint={a.cutoffdate ? fullDateTime(a.cutoffdate) : t("lateAllowed")}
 						/>
 						{a.allowsubmissionsfromdate > Date.now() / 1000 ? (
-							<Fact icon={<HourglassIcon size={16} />} label="開放繳交" value={deadlinePhrase(a.allowsubmissionsfromdate)} hint={fullDateTime(a.allowsubmissionsfromdate)} />
+							<Fact icon={<HourglassIcon size={16} />} label={t("opens")} value={deadlinePhrase(a.allowsubmissionsfromdate)} hint={fullDateTime(a.allowsubmissionsfromdate)} />
 						) : (
 							<Fact
 								icon={<PaperclipIcon size={16} />}
-								label="繳交方式"
-								value={rules.fileEnabled ? `檔案，最多 ${rules.maxFiles} 個` : rules.textEnabled ? "線上文字" : "不用在 E3 繳交"}
-								hint={rules.accept.length ? `限 ${rules.accept.join(" ")}` : rules.fileEnabled ? "不限檔案類型" : undefined}
+								label={t("method")}
+								value={rules.fileEnabled ? t("methodFiles", rules.maxFiles) : rules.textEnabled ? t("methodText") : t("methodNone")}
+								hint={rules.accept.length ? t("onlyTypes", rules.accept.join(" ")) : rules.fileEnabled ? t("anyType") : undefined}
 							/>
 						)}
 					</dl>
 
 					{(a.intro || introFiles.length > 0) && (
 						<section className="card-quiet p-5">
-							<h2 className="mb-2 text-sm font-semibold text-base-content/60">說明</h2>
+							<h2 className="mb-2 text-sm font-semibold text-base-content/65">{t("description")}</h2>
 							{a.intro && <div className="prose-e3" dangerouslySetInnerHTML={{ __html: cleanHtml(a.intro) }} />}
 							{introFiles.length > 0 && (
 								<div className="mt-4">
@@ -117,9 +121,9 @@ export function AssignmentPage() {
 
 					{st?.feedback && (
 						<section className="card-quiet p-5">
-							<h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-base-content/60">
+							<h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-base-content/65">
 								<ChatTextIcon size={16} />
-								老師回饋
+								{t("feedback")}
 							</h2>
 							{st.feedback.gradefordisplay && <div className="mb-3 text-3xl font-semibold tabular-nums" dangerouslySetInnerHTML={{ __html: cleanHtml(st.feedback.gradefordisplay) }} />}
 							{feedbackText.map(f => (
@@ -130,34 +134,28 @@ export function AssignmentPage() {
 									<FileChips files={feedbackFiles} />
 								</div>
 							)}
-							{st.feedback.gradeddate > 0 && (
-								<p className="mt-3 text-xs text-base-content/45">
-									<Ago ts={st.feedback.gradeddate} /> 評分
-								</p>
-							)}
+							{st.feedback.gradeddate > 0 && <p className="mt-3 text-xs text-base-content/65">{t("gradedAt", <Ago ts={st.feedback.gradeddate} />)}</p>}
 						</section>
 					)}
 				</div>
 
 				<aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
 					<section className="card-quiet p-4">
-						<h2 className="mb-3 text-sm font-semibold text-base-content/60">我的繳交</h2>
+						<h2 className="mb-3 text-sm font-semibold text-base-content/65">{t("mySubmission")}</h2>
 						{files.length ? (
 							<>
 								<FileChips files={files} />
-								{sub && (
-									<p className="mt-2 text-xs text-base-content/50">
-										最後更新 <Ago ts={sub.timemodified} />（{fullDateTime(sub.timemodified)}）
-									</p>
-								)}
+								{sub && <p className="mt-2 text-xs text-base-content/65">{t("lastUpdated", <Ago ts={sub.timemodified} />, fullDateTime(sub.timemodified))}</p>}
 							</>
 						) : (
-							<p className="text-sm text-base-content/50">還沒有上傳任何檔案</p>
+							<p className="text-sm text-base-content/65">{t("noFiles")}</p>
 						)}
 					</section>
 					<SubmitPanel assignment={a} status={st} state={state} rules={rules} existing={files} />
 					<a className="btn btn-ghost btn-sm w-full" href={e3Link(`/mod/assign/view.php?id=${a.cmid}`)} target="_blank" rel="noreferrer">
-						<ArrowSquareOutIcon size={15} />在 E3 開啟這份作業
+						<ArrowSquareOutIcon size={15} />
+						{t("openOnE3")}
+						<span className="sr-only">{tc("openInNewTab")}</span>
 					</a>
 				</aside>
 			</div>
@@ -168,12 +166,12 @@ export function AssignmentPage() {
 export function Fact({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
 	return (
 		<div className="card-quiet px-4 py-3" title={hint}>
-			<dt className="flex items-center gap-1.5 text-xs text-base-content/50">
+			<dt className="flex items-center gap-1.5 text-xs text-base-content/65">
 				{icon}
 				{label}
 			</dt>
 			<dd className="mt-1 font-medium">{value}</dd>
-			{hint && <dd className="mt-0.5 truncate text-xs text-base-content/45">{hint}</dd>}
+			{hint && <dd className="mt-0.5 text-xs [overflow-wrap:anywhere] text-base-content/65">{hint}</dd>}
 		</div>
 	);
 }

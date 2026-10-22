@@ -1,7 +1,8 @@
-import { TASK_STATE_LABEL, submissionFiles } from "@/features/assignments/api";
+import { submissionFiles, taskStateLabel } from "@/features/assignments/api";
+import { t } from "@/features/assignments/messages";
 import type { Task } from "@/features/assignments/tasks";
 import { TaskAnchor } from "@/features/calendar/Board";
-import { useCourseLook } from "@/features/courses/look";
+import { courseInk, useCourseLook } from "@/features/courses/look";
 import { countdown } from "@/lib/time/relative";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { Due } from "@/shared/ui/Time";
@@ -16,17 +17,17 @@ const STATE_TONE: Record<Task["state"], string> = {
 	graded: "badge-success"
 };
 
-export function TaskRow({ t, showCourse = true }: { t: Task; showCourse?: boolean }) {
-	const look = useCourseLook(t.course)!;
-	const open = t.state === "todo" || t.state === "late";
-	const cd = t.due ? countdown(t.due) : null;
-	const files = submissionFiles(t.status).length;
+export function TaskRow({ t: task, showCourse = true }: { t: Task; showCourse?: boolean }) {
+	const look = useCourseLook(task.course)!;
+	const open = task.state === "todo" || task.state === "late";
+	const cd = task.due ? countdown(task.due) : null;
+	const files = submissionFiles(task.status).length;
 	const body = (
 		<>
-			<span className="grid size-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `color-mix(in oklab, ${look.color} 14%, transparent)`, color: look.color }}>
-				{t.state === "submitted" || t.state === "graded" ? (
+			<span className="grid size-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `color-mix(in oklab, ${look.color} 14%, transparent)`, color: courseInk(look.color) }}>
+				{task.state === "submitted" || task.state === "graded" ? (
 					<CheckCircleIcon size={22} weight="fill" />
-				) : t.kind === "quiz" ? (
+				) : task.kind === "quiz" ? (
 					<ExamIcon size={22} weight="duotone" />
 				) : (
 					<PaperclipIcon size={22} weight="duotone" />
@@ -34,30 +35,30 @@ export function TaskRow({ t, showCourse = true }: { t: Task; showCourse?: boolea
 			</span>
 			<span className="min-w-0 grow">
 				<span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-					<span className="truncate font-medium">{t.name}</span>
-					{t.inClass && open && (
+					<span className="truncate font-medium">{task.name}</span>
+					{task.inClass && open && (
 						<span className="badge badge-xs badge-warning badge-soft gap-0.5">
 							<LightningIcon size={10} weight="fill" />
-							課堂
+							{t("inClass")}
 						</span>
 					)}
 				</span>
-				<span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-base-content/55">
-					{showCourse && <CourseTag course={t.course} />}
-					{t.due ? <Due ts={t.due} /> : <span>沒有截止日</span>}
-					{files > 0 && <span>· 已上傳 {files} 個檔案</span>}
-					{t.kind === "quiz" && <span>· 測驗（在 E3 作答）</span>}
+				<span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-base-content/65">
+					{showCourse && <CourseTag course={task.course} />}
+					{task.due ? <Due ts={task.due} /> : <span>{t("noDue")}</span>}
+					{files > 0 && <span>{t("filesUploaded", files)}</span>}
+					{task.kind === "quiz" && <span>{t("quizOnE3")}</span>}
 				</span>
 			</span>
 			<span className="flex shrink-0 flex-col items-end gap-1">
-				<span className={`badge badge-sm badge-soft ${STATE_TONE[t.state]}`}>{t.kind === "quiz" && t.state === "submitted" ? "已作答" : TASK_STATE_LABEL[t.state]}</span>
-				{open && cd && <span className={`text-xs tabular-nums ${cd.urgency === "critical" || cd.urgency === "overdue" ? "text-error" : "text-base-content/50"}`}>{cd.text}</span>}
+				<span className={`badge badge-sm badge-soft ${STATE_TONE[task.state]}`}>{taskStateLabel(task.state, task.kind)}</span>
+				{open && cd && <span className={`text-xs tabular-nums ${cd.urgency === "critical" || cd.urgency === "overdue" ? "text-error" : "text-base-content/65"}`}>{cd.text}</span>}
 			</span>
-			<CaretRightIcon size={16} className="shrink-0 text-base-content/30" />
+			<CaretRightIcon size={16} className="shrink-0 text-base-content/65" />
 		</>
 	);
 	return (
-		<TaskAnchor t={t} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-base-content/[0.03]">
+		<TaskAnchor t={task} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-base-content/[0.03]">
 			{body}
 		</TaskAnchor>
 	);

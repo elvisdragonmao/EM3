@@ -2,6 +2,7 @@ import { call, callMany, uploadToDraft } from "@/lib/moodle/client";
 import { fileUrl } from "@/lib/moodle/files";
 import type { Assignment, AssignmentsResponse, InlineFile, SubmissionStatus } from "@/lib/moodle/types";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { t } from "./messages";
 
 export function assignmentsQuery(courseIds: number[]) {
 	const ids = [...courseIds].sort((a, b) => a - b);
@@ -54,14 +55,30 @@ export function useSubmissionStatuses(assignIds: number[]) {
 
 export type TaskState = "upcoming" | "todo" | "late" | "closed" | "submitted" | "graded";
 
+/** Translated state names; getters so the label follows the current language. */
 export const TASK_STATE_LABEL: Record<TaskState, string> = {
-	upcoming: "尚未開放",
-	todo: "待繳交",
-	late: "逾期・可遲交",
-	closed: "已關閉",
-	submitted: "已繳交",
-	graded: "已評分"
+	get upcoming() {
+		return t("stateUpcoming");
+	},
+	get todo() {
+		return t("stateTodo");
+	},
+	get late() {
+		return t("stateLate");
+	},
+	get closed() {
+		return t("stateClosed");
+	},
+	get submitted() {
+		return t("stateSubmitted");
+	},
+	get graded() {
+		return t("stateGraded");
+	}
 };
+
+/** Label for a task's state; quizzes say "attempted" instead of "submitted". */
+export const taskStateLabel = (state: TaskState, kind: "assign" | "quiz" = "assign") => (kind === "quiz" && state === "submitted" ? t("quizAttempted") : TASK_STATE_LABEL[state]);
 
 export function submissionFiles(status: SubmissionStatus | undefined): InlineFile[] {
 	const sub = status?.lastattempt?.submission ?? status?.lastattempt?.teamsubmission;
