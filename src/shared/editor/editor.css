@@ -19,7 +19,7 @@
 	--crepe-color-hover: color-mix(in oklab, var(--color-base-content) 7%, transparent);
 	--crepe-color-selected: color-mix(in oklab, var(--color-primary) 16%, transparent);
 	--crepe-color-inline-area: var(--color-base-200);
-	--crepe-base-font-size: 15px;
+	--crepe-base-font-size: 0.9375rem;
 	--crepe-font-title: var(--font-sans);
 	--crepe-font-default: var(--font-sans);
 	--crepe-font-code: var(--font-mono);
@@ -32,6 +32,13 @@
 	padding: 1rem 1.25rem 1.5rem 3.5rem;
 	min-height: var(--em3-editor-min, 10rem);
 	outline: none;
+}
+
+/* Crepe's reset hides every focus ring; bring it back for its buttons and fields (WCAG 2.4.7). */
+.em3-editor .milkdown button:focus-visible,
+.em3-editor .milkdown input:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 1px;
 }
 
 /* Crepe's top bar is sized for a full-width page; tighten it so it fits a side column in one or two rows. */
@@ -60,12 +67,13 @@
 	padding: 1px;
 }
 .em3-editor .milkdown .milkdown-top-bar .top-bar-heading-button {
-	height: 28px;
+	height: auto;
+	min-height: 1.75rem;
 	padding: 2px 2px 2px 8px;
 	border-radius: 6px;
 }
 .em3-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-heading-label {
-	font-size: 13px;
+	font-size: 0.8125rem;
 	min-width: 4.5rem;
 }
 .em3-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-chevron {
