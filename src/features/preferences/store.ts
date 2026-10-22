@@ -1,4 +1,4 @@
-import type { Slot } from "@/features/timetable/periods";
+import { schoolPeriods, type Slot } from "@/features/timetable/periods";
 import { getMoodleBaseUrl } from "@/lib/moodle/client";
 import { DEFAULT_MOODLE_URL } from "@/lib/moodle/site";
 import type { LanguagePref } from "@/i18n";
@@ -54,6 +54,7 @@ export interface Prefs {
 interface PrefsActions {
 	set: <K extends keyof Prefs>(key: K, value: Prefs[K]) => void;
 	setCourse: (id: number, patch: Partial<CourseLook>) => void;
+	/** `null` removes the student's entry; on schools that fill times from Moodle, that brings Moodle's back. */
 	setTimetable: (id: number, entry: TimetableEntry | null) => void;
 	markSeen: (ids: number[]) => void;
 	replaceAll: (prefs: Partial<Prefs>) => void;
@@ -92,7 +93,9 @@ export const usePrefs = create<Prefs & PrefsActions>()(
 				set(s => {
 					const site = getMoodleBaseUrl();
 					const next = { ...(site === DEFAULT_MOODLE_URL ? s.timetable : s.siteTimetables[site]) };
-					if (entry && entry.slots.length) next[id] = entry;
+					// Where Moodle fills in class times, an entry with no slots is how the student removes Moodle's;
+					// clearing (null) goes back to them.
+					if (entry && (entry.slots.length || schoolPeriods()?.fromMoodle)) next[id] = entry;
 					else delete next[id];
 					return site === DEFAULT_MOODLE_URL ? { timetable: next } : { siteTimetables: { ...s.siteTimetables, [site]: next } };
 				}),

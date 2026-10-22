@@ -341,7 +341,8 @@ function CourseScheduleRow({
 	function commit() {
 		if (draft === null) return;
 		const parsed = parseScheduleCode(draft);
-		setTimetable(course.id, parsed.slots.length ? { ...parsed, room: parsed.room ?? (school?.fromMoodle ? entry?.room : undefined) } : null);
+		// An empty input on a Moodle-filled school keeps an empty entry, which hides Moodle's time; the reset button brings it back.
+		setTimetable(course.id, parsed.slots.length || school?.fromMoodle ? { ...parsed, room: parsed.room ?? (school?.fromMoodle ? entry?.room : undefined) } : null);
 		setDraft(null);
 	}
 
