@@ -59,8 +59,17 @@ export function finishSso(link: string): { baseUrl: string; token: string; remem
 	}
 	if (!pending || Date.now() - pending.at > PENDING_MS) throw new Error(t("ssoExpired"));
 	const token = decodeSsoToken(link, pending.baseUrl, pending.passport);
-	// Kept on purpose: if the sign-in that follows fails (network), the same link can be tried again. It expires on its own.
+	// Kept until clearSso: if the sign-in that follows fails (network), the same link can be tried again.
 	return { baseUrl: pending.baseUrl, token, remember: pending.remember, next: pending.next };
+}
+
+/** Forget the pending launch once it has been used, so a link left in the history cannot sign in again. */
+export function clearSso() {
+	try {
+		localStorage.removeItem(PENDING_KEY);
+	} catch {
+		// Storage blocked: nothing was saved either.
+	}
 }
 
 /** The passport check stops a crafted link from signing the user in to someone else's account. */

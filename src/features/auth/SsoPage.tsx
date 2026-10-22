@@ -1,4 +1,4 @@
-import { finishSso } from "@/lib/moodle/sso";
+import { clearSso, finishSso } from "@/lib/moodle/sso";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useEffect, useRef, useState } from "react";
@@ -20,9 +20,14 @@ export function SsoPage() {
 		(async () => {
 			const { baseUrl, token, remember, next } = finishSso(u);
 			await signInWithToken(baseUrl, token, remember);
+			clearSso();
 			const target = next?.replace(/^#/, "");
 			await navigate({ to: target && target !== "/login" ? target : "/", replace: true });
-		})().catch(err => setError(err instanceof Error ? err.message : t("signInFailed")));
+		})().catch(err => {
+			setError(err instanceof Error ? err.message : t("signInFailed"));
+			// The link carries a token; keep it out of the address bar and history. The login page's paste box can retry.
+			void navigate({ to: "/sso", search: {}, replace: true });
+		});
 	}, [u, signInWithToken, navigate]);
 
 	return (

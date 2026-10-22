@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { setLocale } from "../src/i18n/index.ts";
-import { decodeSsoToken, finishSso, md5, SCHEME } from "../src/lib/moodle/sso.ts";
+import { clearSso, decodeSsoToken, finishSso, md5, SCHEME } from "../src/lib/moodle/sso.ts";
 
 // Error messages are translated; Node's default locale is English, so pin the source language.
 setLocale("zh-TW");
@@ -67,4 +67,11 @@ test("finishSso refuses an expired or missing launch", () => {
 test("the protocol scheme is one browsers and Moodle's launch.php both accept", () => {
 	assert.match(SCHEME, /^web\+[a-z]+$/); // registerProtocolHandler: ASCII letters only after "web+"
 	assert.match(SCHEME, /^[a-zA-Z][a-zA-Z0-9-+.]*$/); // launch.php's urlscheme check
+});
+
+test("clearSso forgets the launch, so the same link cannot sign in again", () => {
+	pending();
+	assert.equal(finishSso(link(md5(base + "pp"), "tok123")).token, "tok123");
+	clearSso();
+	assert.throws(() => finishSso(link(md5(base + "pp"), "tok123")), /逾時/);
 });

@@ -2,6 +2,7 @@ import { clearPrivateCache } from "@/app/queryClient";
 import { deleteCookie, readCookie, writeCookie } from "@/lib/cookie";
 import { call, requestToken, setMoodleBaseUrl, setToken } from "@/lib/moodle/client";
 import { DEFAULT_MOODLE_URL, normalizeMoodleUrl } from "@/lib/moodle/site";
+import { clearSso } from "@/lib/moodle/sso";
 import type { SiteInfo } from "@/lib/moodle/types";
 import { create } from "zustand";
 
@@ -89,6 +90,7 @@ export const useSession = create<SessionState>((set, get) => ({
 	},
 	signOut() {
 		deleteCookie(COOKIE);
+		clearSso();
 		setToken(null);
 		set({ token: null, userid: null });
 	}
