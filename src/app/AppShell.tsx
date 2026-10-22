@@ -13,6 +13,8 @@ import { motion, MotionConfig } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { t } from "./messages";
 import { NAV, visibleNav } from "./nav";
+import { ModeDialog } from "@/features/server/ModeDialog";
+import { useServerLink } from "@/features/server/useServerLink";
 import { Logo } from "@/shared/ui/Logo";
 import { Avatar } from "@/shared/ui/Avatar";
 import { FilePreviewHost } from "@/features/course/FilePreview";
@@ -36,6 +38,8 @@ export function AppShell() {
 		shownPath.current = location.pathname;
 		main.current?.focus({ preventScroll: true });
 	}, [location.pathname]);
+
+	useServerLink();
 
 	useHotkeys([
 		{ keys: "mod+k", run: palette.toggle, inInput: true },
@@ -78,6 +82,7 @@ export function AppShell() {
 			<ShortcutsDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 			<FilePreviewHost />
 			<LeaveToE3Host />
+			<ModeDialog />
 		</MotionConfig>
 	);
 }

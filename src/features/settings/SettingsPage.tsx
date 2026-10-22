@@ -10,6 +10,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
 import { LanguageRadios } from "@/shared/ui/LanguagePicker";
+import { NotificationSettings } from "@/features/notify/NotificationSettings";
+import { t as st } from "@/features/server/messages";
+import { ServerOnly } from "@/features/server/ServerOnly";
+import { VersionSettings } from "@/features/server/VersionSettings";
 import { t } from "./messages";
 import { ALL_THEMES, type ThemeInfo } from "./themes";
 
@@ -80,6 +84,16 @@ export function SettingsPage() {
 						{t("signOut")}
 					</button>
 				</div>
+			</Section>
+
+			<Section id="settings-version" title={st("section")} desc={st("sectionDesc")}>
+				<VersionSettings />
+			</Section>
+
+			<Section id="settings-notifications" title={t("notifications")} desc={t("notificationsDesc")}>
+				<ServerOnly>
+					<NotificationSettings />
+				</ServerOnly>
 			</Section>
 
 			<Section id="settings-personal" title={t("personal")} desc={t("personalDesc")}>
