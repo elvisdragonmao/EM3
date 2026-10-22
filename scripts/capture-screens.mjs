@@ -196,7 +196,6 @@ for (const [theme, suffix] of [
 	await shot(desk.page, `courses-${suffix}`, "/courses");
 	await shot(desk.page, `timetable-${suffix}`, "/timetable");
 	// Teacher views (the account teaches course 23571).
-	await shot(desk.page, `teach-${suffix}`, "/courses/23571?tab=teach");
 	await shot(desk.page, `grading-${suffix}`, "/courses/23571/assign/218500/grade", async p => {
 		await p.locator('input[placeholder="未評分"]').fill("92");
 		await p.getByRole("tab", { name: "Markdown" }).first().click();

@@ -3,9 +3,13 @@
 
 Usage: python3 scripts/screens-to-webp.py <png-dir>
 
-Desktop shots (1920×1080 at 2x) are kept at 3840×2160. Phone shots
-(iPhone 17 Pro, 1206×2622) are placed inside scripts/assets/iphone17pro.png,
-whose transparent screen area is used as the mask, then scaled down.
+Shots are captured at 2x (desktop 1920×1080 → 3840×2160) and then scaled to
+twice the widest size they are shown at, on the landing page or in the README
+(GitHub's README column is at most 1012 CSS px). Phone shots (iPhone 17 Pro,
+1206×2622) are placed inside scripts/assets/iphone17pro.png, whose transparent
+screen area is used as the mask, before scaling. Everything is WebP at quality 80.
+
+Usage on already converted files: python3 scripts/screens-to-webp.py --resize
 """
 import os, sys
 from collections import deque
@@ -15,7 +19,29 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = sys.argv[1]
 DST = os.path.join(ROOT, "public", "screens")
 FRAME = Image.open(os.path.join(ROOT, "scripts", "assets", "iphone17pro.png")).convert("RGBA")
-PHONE_WIDTH = 900
+# 2 × the widest CSS width each shot is displayed at (landing page at 1920 px; README).
+WIDTHS = {
+    "dashboard": 2230,  # landing hero, 1115 px
+    "materials": 2024,  # README full width
+    "submit": 2024,
+    "courses": 2024,
+    "grading": 2024,
+    "timetable": 1750,  # landing feature, 875 px
+    "shortcuts": 1550,  # landing, 775 px
+    "quiz": 1076,  # landing pair, 538 px
+    "announce": 1076,
+    "mobile-dashboard": 660,  # README 34% cell, ~330 px
+    "mobile-course": 480,  # landing, 240 px
+}
+
+
+def target_width(name):
+    return WIDTHS[name.rsplit("-", 1)[0]]
+
+
+def fit(im, name):
+    w = target_width(name)
+    return im.resize((w, round(im.height * w / im.width)), Image.LANCZOS) if im.width > w else im
 
 
 def screen_mask(frame):
@@ -55,19 +81,26 @@ def in_phone(shot):
     return canvas
 
 
+if SRC == "--resize":
+    for name in sorted(os.listdir(DST)):
+        if name.endswith(".webp"):
+            path = os.path.join(DST, name)
+            im = Image.open(path)
+            # Re-encoding a WebP loses quality, so files already at size are left alone.
+            if im.width <= target_width(name[:-5]):
+                continue
+            im = fit(im, name[:-5])
+            im.save(path, "WEBP", quality=80, method=6)
+            print(f"{path}  {im.width}x{im.height}  {os.path.getsize(path) // 1024} KB")
+    sys.exit()
+
 os.makedirs(DST, exist_ok=True)
 for name in sorted(os.listdir(SRC)):
     if not name.endswith(".png") or name.startswith("combo"):
         continue
     im = Image.open(os.path.join(SRC, name))
-    if name.startswith("mobile"):
-        im = in_phone(im)
-        im = im.resize((PHONE_WIDTH, round(im.height * PHONE_WIDTH / im.width)), Image.LANCZOS)
-        lossless = False
-    else:
-        im = im.convert("RGB")
-        if im.width > 3840:
-            im = im.resize((3840, round(im.height * 3840 / im.width)), Image.LANCZOS)
+    im = in_phone(im) if name.startswith("mobile") else im.convert("RGB")
+    im = fit(im, name[:-4])
     out = os.path.join(DST, name[:-4] + ".webp")
     im.save(out, "WEBP", quality=80, method=6)
     print(f"{out}  {im.width}x{im.height}  {os.path.getsize(out) // 1024} KB")

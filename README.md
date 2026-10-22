@@ -205,7 +205,7 @@ NODE_PATH=$(npm root -g) node scripts/capture-screens.mjs /tmp/em3-screens
 python3 scripts/screens-to-webp.py /tmp/em3-screens
 ```
 
-需要 `.env.local` 裡的 `E3_USERNAME` / `E3_PASSWORD`，以及全域安裝的 Playwright。桌機截圖是 1920×1080 的 2 倍；手機截圖用 iPhone 17 Pro 的尺寸（402×874 @3x）拍，再合成進 `scripts/assets/iphone17pro.png` 的外框。
+需要 `.env.local` 裡的 `E3_USERNAME` / `E3_PASSWORD`，以及全域安裝的 Playwright。桌機截圖用 1920×1080 的 2 倍拍；手機截圖用 iPhone 17 Pro 的尺寸（402×874 @3x）拍，再合成進 `scripts/assets/iphone17pro.png` 的外框。`scripts/screens-to-webp.py` 會把每張圖縮到它在介紹頁或 README 上最大顯示寬度的 2 倍，存成品質 80 的 WebP。
 
 ### 更新圖示與分享圖
 
