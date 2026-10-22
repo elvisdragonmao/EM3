@@ -18,6 +18,13 @@ const loginRoute = createRoute({
 	}
 });
 
+const ssoRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/sso",
+	validateSearch: (s: Record<string, unknown>): { u?: string } => ({ u: typeof s.u === "string" ? s.u : undefined }),
+	component: lazyRouteComponent(() => import("@/features/auth/SsoPage"), "SsoPage")
+});
+
 const welcomeRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/welcome",
@@ -149,6 +156,7 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
 	loginRoute,
+	ssoRoute,
 	welcomeRoute,
 	appRoute.addChildren([
 		dashboardRoute,

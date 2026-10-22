@@ -20,6 +20,8 @@ interface SessionState {
 	userid: number | null;
 	baseUrl: string;
 	signIn: (baseUrl: string, username: string, password: string, remember: boolean) => Promise<SiteInfo>;
+	/** For SSO sites, where Moodle hands out the token instead of exchanging a password. */
+	signInWithToken: (baseUrl: string, token: string, remember: boolean) => Promise<SiteInfo>;
 	signOut: () => void;
 }
 
@@ -35,6 +37,17 @@ function loadSession(): StoredSession | null {
 	}
 }
 
+const LAST_SITE_KEY = "em3_last_site";
+
+/** The school of the last successful sign-in, so the login page opens on it again after signing out. */
+export function lastSite(): string | null {
+	try {
+		return localStorage.getItem(LAST_SITE_KEY);
+	} catch {
+		return null;
+	}
+}
+
 const initial = loadSession();
 const initialBaseUrl = initial?.baseUrl ?? DEFAULT_MOODLE_URL;
 setMoodleBaseUrl(initialBaseUrl);
@@ -45,8 +58,11 @@ export const useSession = create<SessionState>((set, get) => ({
 	userid: initial?.userid ?? null,
 	baseUrl: initialBaseUrl,
 	async signIn(baseUrl, username, password, remember) {
+		const { token } = await requestToken(baseUrl, username.trim(), password);
+		return get().signInWithToken(baseUrl, token, remember);
+	},
+	async signInWithToken(baseUrl, token, remember) {
 		const normalizedBaseUrl = normalizeMoodleUrl(baseUrl);
-		const { token } = await requestToken(normalizedBaseUrl, username.trim(), password);
 		const previousBaseUrl = get().baseUrl;
 		const previousToken = get().token;
 		setMoodleBaseUrl(normalizedBaseUrl);
@@ -64,6 +80,11 @@ export const useSession = create<SessionState>((set, get) => ({
 		// "Remember me" off still uses a cookie, but one that expires in a day.
 		writeCookie(COOKIE, JSON.stringify(session), remember ? COOKIE_DAYS : 1);
 		set({ ...session, baseUrl: normalizedBaseUrl });
+		try {
+			localStorage.setItem(LAST_SITE_KEY, normalizedBaseUrl);
+		} catch {
+			// Storage blocked (private mode): the login page falls back to the default school.
+		}
 		return info;
 	},
 	signOut() {
