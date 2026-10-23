@@ -34,24 +34,36 @@ export function VersionSettings() {
 		}
 	}
 
-	const options: [DataMode, string, React.ReactNode][] = [
-		["server", t("serverName"), <CloudIcon key="s" size={16} />],
-		["local", t("localName"), <DeviceMobileIcon key="l" size={16} />]
+	const options: [DataMode, string, string, React.ReactNode][] = [
+		["server", t("serverName"), t("serverSummary"), <CloudIcon key="s" size={20} weight="duotone" />],
+		["local", t("localName"), t("localSummary"), <DeviceMobileIcon key="l" size={20} weight="duotone" />]
 	];
 
 	return (
 		<div className="space-y-3">
-			<fieldset className="fieldset">
+			<fieldset className="fieldset p-0">
 				<legend className="sr-only">{t("section")}</legend>
-				<div className="flex flex-wrap gap-2">
-					{options.map(([m, label, icon]) => (
-						<label key={m} className={`btn btn-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary ${mode === m ? "btn-active" : ""}`}>
-							<input type="radio" name="data-mode" className="sr-only" value={m} checked={mode === m} onChange={() => pick(m)} />
-							{icon}
-							{label}
-							{m === "server" && <span className="badge badge-xs badge-primary">{t("recommended")}</span>}
-						</label>
-					))}
+				<div className="grid gap-2 sm:grid-cols-2">
+					{options.map(([m, label, summary, icon]) => {
+						const on = mode === m;
+						return (
+							<label
+								key={m}
+								className={`flex cursor-pointer items-start gap-3 rounded-box border p-3 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary ${on ? "border-primary bg-primary/[0.06]" : "hairline bg-base-100 hover:bg-base-content/[0.03]"}`}
+							>
+								<input type="radio" name="data-mode" className="radio radio-primary radio-sm mt-0.5" value={m} checked={on} onChange={() => pick(m)} />
+								<span className="min-w-0 grow">
+									<span className="flex flex-wrap items-center gap-1.5 font-medium">
+										<span className={on ? "text-primary" : "text-base-content/65"}>{icon}</span>
+										{label}
+										{m === "server" && <span className="badge badge-xs badge-primary badge-soft">{t("recommended")}</span>}
+										{on && <span className="badge badge-xs badge-primary">{t("current")}</span>}
+									</span>
+									<span className="mt-1 block text-xs text-base-content/65">{summary}</span>
+								</span>
+							</label>
+						);
+					})}
 				</div>
 			</fieldset>
 			<div role="status" className="text-sm text-base-content/70">
