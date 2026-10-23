@@ -1,3 +1,4 @@
+import { isDoneState, TASK_STATE_LABEL } from "@/features/assignments/api";
 import type { Task } from "@/features/assignments/tasks";
 import { useTimetable } from "@/features/timetable/schedule";
 import { courseText, defaultColor, resolveLook } from "@/features/courses/look";
@@ -5,7 +6,7 @@ import { type CalendarSpan, usePrefs } from "@/features/preferences/store";
 import { blocksFor } from "@/features/timetable/now";
 import { dayIndex } from "@/features/timetable/periods";
 import { addDays, deadlineClock, deadlineDay, md, sameDay, shortWeekday, startOfDay, startOfWeek, weekdayName } from "@/lib/time/relative";
-import { CaretLeftIcon, CaretRightIcon, CheckCircleIcon, ExamIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon, CheckCircleIcon, ExamIcon, MinusCircleIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useMedia } from "@/shared/hooks/useMedia";
@@ -171,7 +172,7 @@ export function CalendarBoard({ tasks, compact = false, spanKey = "calendarSpan"
 												{items.map(x => (
 													<span
 														key={x.key}
-														className={`size-2 rounded-full ${x.state === "submitted" || x.state === "graded" ? "opacity-30" : ""}`}
+														className={`size-2 rounded-full ${isDoneState(x.state) ? "opacity-30" : ""}`}
 														style={{ backgroundColor: looks[x.course.id]?.color ?? defaultColor(x.course.id) }}
 													/>
 												))}
@@ -237,8 +238,11 @@ export function TaskAnchor({ t, className, children }: { t: Task; className?: st
 
 function TaskChip({ t: task, dense }: { t: Task; dense: boolean }) {
 	const look = resolveLook(task.course, usePrefs.getState().courses[task.course.id]);
-	const done = task.state === "submitted" || task.state === "graded";
-	const status = done ? <span className="sr-only">{t("done")}</span> : task.kind === "quiz" ? <span className="sr-only">{t("quiz")}</span> : null;
+	const done = isDoneState(task.state);
+	// Marked as not needed reads differently from handed in.
+	const DoneIcon = task.state === "skipped" ? MinusCircleIcon : CheckCircleIcon;
+	const doneLabel = task.state === "skipped" ? TASK_STATE_LABEL.skipped : t("done");
+	const status = done ? <span className="sr-only">{doneLabel}</span> : task.kind === "quiz" ? <span className="sr-only">{t("quiz")}</span> : null;
 	if (!dense)
 		return (
 			<span
@@ -249,7 +253,11 @@ function TaskChip({ t: task, dense }: { t: Task; dense: boolean }) {
 			>
 				<span className={`line-clamp-2 font-medium [overflow-wrap:anywhere] ${done ? "line-through" : ""}`}>{task.name}</span>
 				<span className="mt-0.5 flex items-center gap-1 text-[0.65rem] text-base-content/75">
-					{done ? <CheckCircleIcon size={11} weight="fill" className="shrink-0 text-success" /> : task.kind === "quiz" ? <ExamIcon size={11} className="shrink-0" /> : null}
+					{done ? (
+						<DoneIcon size={11} weight="fill" className={`shrink-0 ${task.state === "skipped" ? "" : "text-success"}`} />
+					) : task.kind === "quiz" ? (
+						<ExamIcon size={11} className="shrink-0" />
+					) : null}
 					{status}
 					<span className="tabular-nums">{deadlineClock(task.due)}</span>
 					<span className="truncate" lang={look.titleLang}>
@@ -268,7 +276,7 @@ function TaskChip({ t: task, dense }: { t: Task; dense: boolean }) {
 			}
 			title={`${look.title}｜${task.name}`}
 		>
-			{done ? <CheckCircleIcon size={11} weight="bold" className="shrink-0" /> : task.kind === "quiz" ? <ExamIcon size={11} className="shrink-0" /> : null}
+			{done ? <DoneIcon size={11} weight="bold" className="shrink-0" /> : task.kind === "quiz" ? <ExamIcon size={11} className="shrink-0" /> : null}
 			{status}
 			<span className={`truncate ${done ? "line-through" : ""}`}>{dense ? look.title : task.name}</span>
 			{!dense && <span className="ml-auto shrink-0 tabular-nums">{deadlineClock(task.due)}</span>}
@@ -278,7 +286,10 @@ function TaskChip({ t: task, dense }: { t: Task; dense: boolean }) {
 
 export function TaskLine({ t: task, trailing }: { t: Task; trailing?: ReactNode }) {
 	const look = resolveLook(task.course, usePrefs.getState().courses[task.course.id]);
-	const done = task.state === "submitted" || task.state === "graded";
+	const done = isDoneState(task.state);
+	// Marked as not needed reads differently from handed in.
+	const DoneIcon = task.state === "skipped" ? MinusCircleIcon : CheckCircleIcon;
+	const doneLabel = task.state === "skipped" ? TASK_STATE_LABEL.skipped : t("done");
 	const inner = (
 		<>
 			<span aria-hidden className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: look.color }} />
@@ -290,8 +301,8 @@ export function TaskLine({ t: task, trailing }: { t: Task; trailing?: ReactNode 
 			</span>
 			{done && (
 				<>
-					<CheckCircleIcon size={18} weight="fill" className="shrink-0 text-success" />
-					<span className="sr-only">{t("done")}</span>
+					<DoneIcon size={18} weight="fill" className={`shrink-0 ${task.state === "skipped" ? "text-base-content/65" : "text-success"}`} />
+					<span className="sr-only">{doneLabel}</span>
 				</>
 			)}
 			{trailing}

@@ -1,3 +1,4 @@
+import { isDoneState } from "@/features/assignments/api";
 import { TaskRow } from "@/features/assignments/TaskRow";
 import { type Task, useTasks } from "@/features/assignments/tasks";
 import type { ParsedCourse } from "@/features/courses/parse";
@@ -10,7 +11,7 @@ export function TaskGroups({ tasks, showCourse }: { tasks: Task[]; showCourse: b
 	const groups = [
 		{ label: tr("groupTodo"), items: tasks.filter(t => t.state === "todo" || t.state === "late") },
 		{ label: tr("groupUpcoming"), items: tasks.filter(t => t.state === "upcoming") },
-		{ label: tr("groupDone"), items: tasks.filter(t => t.state === "submitted" || t.state === "graded").reverse() },
+		{ label: tr("groupDone"), items: tasks.filter(t => isDoneState(t.state)).reverse() },
 		{ label: tr("groupClosed"), items: tasks.filter(t => t.state === "closed").reverse() }
 	].filter(g => g.items.length);
 	return (

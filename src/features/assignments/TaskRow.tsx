@@ -1,4 +1,4 @@
-import { submissionFiles, taskStateLabel } from "@/features/assignments/api";
+import { isDoneState, submissionFiles, taskStateLabel } from "@/features/assignments/api";
 import { t } from "@/features/assignments/messages";
 import type { Task } from "@/features/assignments/tasks";
 import { TaskAnchor } from "@/features/calendar/Board";
@@ -6,7 +6,7 @@ import { courseInk, useCourseLook } from "@/features/courses/look";
 import { countdown } from "@/lib/time/relative";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { Due } from "@/shared/ui/Time";
-import { CaretRightIcon, CheckCircleIcon, ExamIcon, LightningIcon, PaperclipIcon } from "@phosphor-icons/react";
+import { CaretRightIcon, CheckCircleIcon, ExamIcon, LightningIcon, MinusCircleIcon, PaperclipIcon } from "@phosphor-icons/react";
 
 const STATE_TONE: Record<Task["state"], string> = {
 	upcoming: "badge-ghost",
@@ -14,7 +14,8 @@ const STATE_TONE: Record<Task["state"], string> = {
 	late: "badge-error",
 	closed: "badge-ghost",
 	submitted: "badge-success",
-	graded: "badge-success"
+	graded: "badge-success",
+	skipped: "badge-neutral"
 };
 
 export function TaskRow({ t: task, showCourse = true }: { t: Task; showCourse?: boolean }) {
@@ -25,7 +26,9 @@ export function TaskRow({ t: task, showCourse = true }: { t: Task; showCourse?: 
 	const body = (
 		<>
 			<span className="grid size-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `color-mix(in oklab, ${look.color} 14%, transparent)`, color: courseInk(look.color) }}>
-				{task.state === "submitted" || task.state === "graded" ? (
+				{task.state === "skipped" ? (
+					<MinusCircleIcon size={22} weight="fill" />
+				) : isDoneState(task.state) ? (
 					<CheckCircleIcon size={22} weight="fill" />
 				) : task.kind === "quiz" ? (
 					<ExamIcon size={22} weight="duotone" />

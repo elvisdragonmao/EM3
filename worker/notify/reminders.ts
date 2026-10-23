@@ -31,6 +31,23 @@ export interface NotifyPrefs {
 	grading: boolean;
 }
 
+/** Assignments (by cmid) the user marked in EM3 as not needing a submission or grading. */
+export interface Skips {
+	submit: Set<number>;
+	grading: Set<number>;
+}
+
+export const NO_SKIPS: Skips = { submit: new Set(), grading: new Set() };
+
+/** Reads the marks from the synced settings (`skipSubmit` / `skipGrading`: cmid → time marked). */
+export function readSkips(prefs: unknown): Skips {
+	const ids = (key: string) => {
+		const v = typeof prefs === "object" && prefs !== null ? (prefs as Record<string, unknown>)[key] : null;
+		return new Set(typeof v === "object" && v !== null && !Array.isArray(v) ? Object.keys(v).map(Number).filter(Number.isInteger) : []);
+	};
+	return { submit: ids("skipSubmit"), grading: ids("skipGrading") };
+}
+
 /** The due time is part of the key, so an extended deadline gets its reminders again. */
 export const sentKey = (eventId: number, due: number, lead: number) => `${eventId}:${due}:${lead}`;
 
@@ -46,12 +63,14 @@ export function classify(e: ActionEvent): Reminder["kind"] | null {
  * Only the smallest unsent one is sent; the larger ones are marked sent with it, so someone
  * who just enabled reminders gets one message per event, not one per lead.
  */
-export function planReminders(events: ActionEvent[], prefs: NotifyPrefs, nowSec: number, sent: Set<string>): { send: Reminder[]; silent: string[] } {
+export function planReminders(events: ActionEvent[], prefs: NotifyPrefs, nowSec: number, sent: Set<string>, skips: Skips = NO_SKIPS): { send: Reminder[]; silent: string[] } {
 	const send: Reminder[] = [];
 	const silent: string[] = [];
 	for (const event of events) {
 		const kind = classify(event);
 		if (!kind || (kind === "deadline" && !prefs.deadlines) || (kind === "grading" && !prefs.grading)) continue;
+		const cmid = cmidOf(event);
+		if (cmid !== null && (kind === "deadline" ? skips.submit : skips.grading).has(cmid)) continue;
 		const left = event.timesort - nowSec;
 		if (left <= 0) continue;
 		const applies = prefs.leadHours.filter(h => left <= h * 3600).sort((a, b) => a - b);

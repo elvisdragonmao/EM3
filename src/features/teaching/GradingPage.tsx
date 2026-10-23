@@ -1,4 +1,6 @@
 import { useAssignments } from "@/features/assignments/api";
+import { t as ta } from "@/features/assignments/messages";
+import { SkipToggle, useSkipped } from "@/features/assignments/SkipToggle";
 import { useSession } from "@/features/auth/session";
 import { FileIcon } from "@/features/course/FileIcon";
 import { openFile } from "@/features/course/FilePreview";
@@ -78,6 +80,7 @@ export function GradingPage() {
 	const [filter, setFilter] = useState<Filter>("todo");
 	const [q, setQ] = useState("");
 	const [bulk, setBulk] = useState<BulkKind | null>(null);
+	const noGrading = useSkipped("grading", Number(cmid));
 	useDocumentTitle(a ? t("docTitle", a.name) : undefined);
 
 	// Server version only (useServerReady): allocations, locks and scheduled release.
@@ -156,6 +159,7 @@ export function GradingPage() {
 					{course && <CourseTag course={course} link />}
 					<h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{a.name}</h1>
 					<p className="mt-1 text-sm text-base-content/65">
+						{noGrading && <span className="mr-2 badge badge-sm badge-soft badge-neutral">{ta("skippedGradingBadge")}</span>}
 						{a.duedate ? (
 							<>
 								{t("due")} <Due ts={a.duedate} /> ·{" "}
@@ -165,6 +169,7 @@ export function GradingPage() {
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
+					<SkipToggle kind="grading" cmid={a.cmid} compact />
 					<button type="button" className="btn btn-sm" onClick={() => setBulk("download")}>
 						<DownloadSimpleIcon size={16} />
 						{t("downloadAll")}

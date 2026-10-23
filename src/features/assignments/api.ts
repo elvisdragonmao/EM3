@@ -54,9 +54,11 @@ export function useSubmissionStatuses(assignIds: number[]) {
 }
 
 export type TaskState = "upcoming" | "todo" | "late" | "closed" | "submitted" | "graded";
+/** A task's state in lists: an assignment the student marked as not needing a submission is "skipped" until it is handed in anyway. */
+export type ListState = TaskState | "skipped";
 
 /** Translated state names; getters so the label follows the current language. */
-export const TASK_STATE_LABEL: Record<TaskState, string> = {
+export const TASK_STATE_LABEL: Record<ListState, string> = {
 	get upcoming() {
 		return t("stateUpcoming");
 	},
@@ -74,16 +76,25 @@ export const TASK_STATE_LABEL: Record<TaskState, string> = {
 	},
 	get graded() {
 		return t("stateGraded");
+	},
+	get skipped() {
+		return t("stateSkipped");
 	}
 };
 
 /** Label for a task's state; quizzes say "attempted" instead of "submitted". */
-export const taskStateLabel = (state: TaskState, kind: "assign" | "quiz" = "assign") => (kind === "quiz" && state === "submitted" ? t("quizAttempted") : TASK_STATE_LABEL[state]);
+export const taskStateLabel = (state: ListState, kind: "assign" | "quiz" = "assign") => (kind === "quiz" && state === "submitted" ? t("quizAttempted") : TASK_STATE_LABEL[state]);
 
 export function submissionFiles(status: SubmissionStatus | undefined): InlineFile[] {
 	const sub = status?.lastattempt?.submission ?? status?.lastattempt?.teamsubmission;
 	return sub?.plugins?.find(p => p.type === "file")?.fileareas?.flatMap(a => a.files ?? []) ?? [];
 }
+
+/** Handed in, graded or marked as not needed: nothing left to do. */
+export const isDoneState = (s: ListState) => s === "submitted" || s === "graded" || s === "skipped";
+
+/** The state shown in lists: a submission or a grade wins over the student's mark. */
+export const withSkip = (state: TaskState, skipped: boolean): ListState => (skipped && state !== "submitted" && state !== "graded" ? "skipped" : state);
 
 export function taskState(a: Assignment, status: SubmissionStatus | undefined, now = Date.now() / 1000): TaskState {
 	const sub = status?.lastattempt?.submission ?? status?.lastattempt?.teamsubmission;

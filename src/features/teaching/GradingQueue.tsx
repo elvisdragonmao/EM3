@@ -24,7 +24,8 @@ export function GradingQueue() {
 	);
 	const assignments = useAssignments(ids);
 	const progress = useGradingProgress(assignments.data ?? []);
-	const queue = (progress.data ?? []).filter(p => p.needsGrading > 0).sort((a, b) => b.needsGrading - a.needsGrading);
+	const skip = usePrefs(s => s.skipGrading);
+	const queue = (progress.data ?? []).filter(p => p.needsGrading > 0 && !skip[p.assignment.cmid]).sort((a, b) => b.needsGrading - a.needsGrading);
 	if (!ids.length || !queue.length) return null;
 
 	return (

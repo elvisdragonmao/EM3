@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isDiscordWebhook, webhookHint } from "../worker/notify/discord.ts";
 import { courseName, formatDue, messages } from "../worker/notify/messages.ts";
-import { type ActionEvent, classify, em3Url, planReminders, reminderText, sentKey } from "../worker/notify/reminders.ts";
+import { type ActionEvent, classify, em3Url, planReminders, readSkips, reminderText, sentKey } from "../worker/notify/reminders.ts";
 
 const NOW = 1_792_648_000;
 const course = { id: 25294, fullname: "1151.515516.網路程式設計概論 Intro. to Network Programming" };
@@ -91,6 +91,23 @@ test("planReminders honours the deadline and grading switches and skips past eve
 		planReminders(events, { ...prefs, deadlines: false }, NOW, new Set()).send.map(r => r.event.id),
 		[2]
 	);
+});
+
+test("planReminders skips assignments marked as not needing a submission or grading", () => {
+	const events = [due(1, 2), grading(2, 2, 5)];
+	// A submission mark doesn't silence grading on the same cmid, and the other way round.
+	const skips = readSkips({ skipSubmit: { 244654: 1, 218500: 1 }, skipGrading: {} });
+	assert.deepEqual(
+		planReminders(events, prefs, NOW, new Set(), skips).send.map(r => r.event.id),
+		[2]
+	);
+	assert.deepEqual(
+		planReminders(events, prefs, NOW, new Set(), readSkips({ skipGrading: { 218500: 1 } })).send.map(r => r.event.id),
+		[1]
+	);
+	// Settings written before the marks existed, or not an object at all.
+	assert.equal(planReminders(events, prefs, NOW, new Set(), readSkips({})).send.length, 2);
+	assert.equal(planReminders(events, prefs, NOW, new Set(), readSkips(null)).send.length, 2);
 });
 
 test("em3Url links to the EM3 page for the activity", () => {

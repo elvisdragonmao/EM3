@@ -4,7 +4,7 @@ import type { Env } from "../env";
 import { HttpError, json, readJson, route, type Route } from "../http";
 import { type DiscordResult, type Embed, isDiscordWebhook, sendDiscord, webhookHint } from "./discord";
 import { messages } from "./messages";
-import { type ActionEvent, planReminders, type Reminder, reminderText, type ReminderText } from "./reminders";
+import { type ActionEvent, planReminders, readSkips, type Reminder, reminderText, type ReminderText } from "./reminders";
 import { isPushEndpoint, type PushResult, pushService, sendPush, type Vapid } from "./webpush";
 
 // Deadline and grading reminders over Web Push and Discord (DESIGN.md, 伺服器版).
@@ -165,7 +165,15 @@ async function remindUser(env: Env, user: DueUser) {
 	const sentRows = await env.DB.prepare("SELECT key FROM sent_notifications WHERE user_id = ? AND key IN (SELECT value FROM json_each(?))")
 		.bind(user.id, JSON.stringify(candidates))
 		.all<{ key: string }>();
-	const plan = planReminders(events, { leadHours: leads, deadlines: !!user.deadlines, grading: !!user.grading }, nowSec, new Set(sentRows.results.map(r => r.key)));
+	// Assignments marked "no submission / no grading needed" live in the synced settings.
+	const prefs = await env.DB.prepare("SELECT data FROM prefs WHERE user_id = ?").bind(user.id).first<{ data: string }>();
+	let skips = readSkips(null);
+	try {
+		skips = readSkips(prefs ? JSON.parse(prefs.data) : null);
+	} catch {
+		// Unreadable settings: remind about everything.
+	}
+	const plan = planReminders(events, { leadHours: leads, deadlines: !!user.deadlines, grading: !!user.grading }, nowSec, new Set(sentRows.results.map(r => r.key)), skips);
 	const send = plan.send.slice(0, SENDS_PER_USER);
 	const done = [...plan.silent];
 

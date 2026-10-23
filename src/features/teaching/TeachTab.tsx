@@ -1,4 +1,6 @@
 import { assignRules, useAssignments } from "@/features/assignments/api";
+import { t as ta } from "@/features/assignments/messages";
+import { usePrefs } from "@/features/preferences/store";
 import type { ParsedCourse } from "@/features/courses/parse";
 import { ServerOnly } from "@/features/server/ServerOnly";
 import { tc } from "@/i18n/common";
@@ -89,6 +91,7 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 	const ids = useMemo(() => [course.id], [course.id]);
 	const assignments = useAssignments(ids);
 	const progress = useGradingProgress(assignments.data ?? []);
+	const skip = usePrefs(s => s.skipGrading);
 	const id = String(course.id);
 
 	const inEm3 = [
@@ -118,6 +121,7 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 						{(assignments.data ?? []).map(a => {
 							const p = progress.data?.find(x => x.assignment.id === a.id);
 							const warnings = setupWarnings(a);
+							const skipped = !!skip[a.cmid];
 							return (
 								<li key={a.id}>
 									<Link
@@ -127,7 +131,10 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 										className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-base-content/[0.03]"
 									>
 										<span className="min-w-0 grow">
-											<span className="block truncate font-medium">{a.name}</span>
+											<span className="flex items-center gap-2">
+												<span className="truncate font-medium">{a.name}</span>
+												{skipped && <span className="badge shrink-0 badge-xs badge-soft badge-neutral">{ta("skippedGradingBadge")}</span>}
+											</span>
 											<span className="mt-0.5 block text-xs text-base-content/65">{a.duedate ? <Due ts={a.duedate} /> : t("noDueDate")}</span>
 											{warnings.map(w => (
 												<span key={w} className="mt-1 flex items-center gap-1 text-xs text-warning">
@@ -148,7 +155,7 @@ export function TeachTab({ course }: { course: ParsedCourse }) {
 													</span>
 													<span className="sr-only">{t("submittedOf", p.submitted, p.total)}</span>
 												</span>
-												<span className={p.needsGrading ? "text-warning" : "text-base-content/65"}>
+												<span className={p.needsGrading && !skipped ? "text-warning" : "text-base-content/65"}>
 													<span aria-hidden>
 														<span className="block text-base font-semibold">{p.needsGrading}</span>
 														{t("toGradeShort")}

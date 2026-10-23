@@ -24,6 +24,8 @@ export interface TimetableEntry {
 }
 
 export type MotionPref = "full" | "reduced";
+/** "submit": the student doesn't need to hand it in (a teammate did); "grading": the grader doesn't need to grade it. */
+export type SkipKind = "submit" | "grading";
 export type CalendarSpan = "week" | "twoWeeks" | "month";
 
 export interface Prefs {
@@ -50,6 +52,10 @@ export interface Prefs {
 	siteTimetables: Record<string, Record<string, TimetableEntry>>;
 	/** Announcement discussion ids the user has opened in EM3 (local only). */
 	seen: Record<string, number>;
+	/** Assignment cmids → when the student marked them as not needing a submission. The server's reminders read it too. */
+	skipSubmit: Record<string, number>;
+	/** Assignment cmids → when the grader marked them as not needing grading. */
+	skipGrading: Record<string, number>;
 }
 
 interface PrefsActions {
@@ -58,6 +64,7 @@ interface PrefsActions {
 	/** `null` removes the student's entry; where times are filled in for them, that brings those back. */
 	setTimetable: (id: number, entry: TimetableEntry | null) => void;
 	markSeen: (ids: number[]) => void;
+	setSkip: (kind: SkipKind, cmid: number, on: boolean) => void;
 	replaceAll: (prefs: Partial<Prefs>) => void;
 	reset: () => void;
 }
@@ -75,6 +82,8 @@ export const DEFAULT_PREFS: Prefs = {
 	timetable: {},
 	siteTimetables: {},
 	seen: {},
+	skipSubmit: {},
+	skipGrading: {},
 	// A getter so a reset picks up phrases in the language in use at that moment.
 	get snippets() {
 		return t("snippets").slice();
@@ -107,6 +116,14 @@ export const usePrefs = create<Prefs & PrefsActions>()(
 					for (const id of ids) seen[id] ??= now;
 					return { seen };
 				}),
+			setSkip: (kind, cmid, on) =>
+				set(s => {
+					const key = kind === "submit" ? "skipSubmit" : "skipGrading";
+					const next = { ...s[key] };
+					if (on) next[cmid] = Date.now();
+					else delete next[cmid];
+					return { [key]: next };
+				}),
 			replaceAll: prefs => set({ ...DEFAULT_PREFS, ...prefs }),
 			reset: () => set(DEFAULT_PREFS)
 		}),
@@ -115,7 +132,7 @@ export const usePrefs = create<Prefs & PrefsActions>()(
 );
 
 export function exportPrefs(): string {
-	const { set: _s, setCourse: _c, setTimetable: _t, markSeen: _m, replaceAll: _r, reset: _x, ...data } = usePrefs.getState();
+	const { set: _s, setCourse: _c, setTimetable: _t, markSeen: _m, setSkip: _k, replaceAll: _r, reset: _x, ...data } = usePrefs.getState();
 	return JSON.stringify({ app: "em3", version: PREFS_VERSION, exportedAt: new Date().toISOString(), prefs: data }, null, "\t");
 }
 

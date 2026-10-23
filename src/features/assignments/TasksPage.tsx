@@ -2,6 +2,7 @@ import { TaskGroups } from "@/features/course/CourseTasks";
 import { Empty, ErrorNote, Lines, PageTitle } from "@/shared/ui/States";
 import { ConfettiIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import { isDoneState } from "./api";
 import { t } from "./messages";
 import { isOpenTask, useTasks } from "./tasks";
 
@@ -9,7 +10,7 @@ export function TasksPage() {
 	const { tasks, isPending, error, refetch } = useTasks();
 	const [showDone, setShowDone] = useState(false);
 	const open = tasks.filter(isOpenTask);
-	const list = showDone ? tasks : tasks.filter(x => x.state !== "submitted" && x.state !== "graded" && x.state !== "closed");
+	const list = showDone ? tasks : tasks.filter(x => !isDoneState(x.state) && x.state !== "closed");
 
 	return (
 		<div>

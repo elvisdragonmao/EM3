@@ -4,7 +4,7 @@ import { usePrefs } from "@/features/preferences/store";
 import { quizState, useQuizAttempts, useQuizzes } from "@/features/quizzes/api";
 import type { Assignment, SubmissionStatus } from "@/lib/moodle/types";
 import { useMemo } from "react";
-import { type TaskState, taskState, useAssignments, useSubmissionStatuses } from "./api";
+import { type ListState, taskState, useAssignments, useSubmissionStatuses, withSkip } from "./api";
 
 // A "task" is anything with a deadline the student must act on: assignments
 // (with live submission state) and quizzes (by close time and own attempts).
@@ -18,7 +18,7 @@ export interface Task {
 	due: number;
 	opens: number;
 	cutoff: number;
-	state: TaskState;
+	state: ListState;
 	assignment?: Assignment;
 	status?: SubmissionStatus;
 	cmid: number;
@@ -49,6 +49,7 @@ export function useTasks(courses?: ParsedCourse[]) {
 	const quizzes = useQuizzes(ids);
 	const statuses = useSubmissionStatuses((assignments.data ?? []).map(a => a.id));
 	const attempts = useQuizAttempts((quizzes.data ?? []).filter(q => q.visible !== false).map(q => q.id));
+	const skip = usePrefs(s => s.skipSubmit);
 
 	const tasks = useMemo(() => {
 		const now = Date.now() / 1000;
@@ -65,7 +66,7 @@ export function useTasks(courses?: ParsedCourse[]) {
 				due: a.duedate,
 				opens: a.allowsubmissionsfromdate,
 				cutoff: a.cutoffdate,
-				state: taskState(a, status, now),
+				state: withSkip(taskState(a, status, now), !!skip[a.cmid]),
 				assignment: a,
 				status,
 				cmid: a.cmid,
@@ -90,7 +91,7 @@ export function useTasks(courses?: ParsedCourse[]) {
 			});
 		}
 		return out.sort((x, y) => (x.due || Infinity) - (y.due || Infinity));
-	}, [assignments.data, quizzes.data, statuses.data, attempts.data, byId]);
+	}, [assignments.data, quizzes.data, statuses.data, attempts.data, byId, skip]);
 
 	return {
 		tasks,

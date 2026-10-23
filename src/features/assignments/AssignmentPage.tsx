@@ -12,8 +12,9 @@ import { Ago } from "@/shared/ui/Time";
 import { ArrowLeftIcon, ArrowSquareOutIcon, ChatTextIcon, ClockIcon, HourglassIcon, LockIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { assignRules, submissionFiles, TASK_STATE_LABEL, taskState, useAssignments, useSubmissionStatus } from "./api";
+import { assignRules, submissionFiles, TASK_STATE_LABEL, taskState, useAssignments, useSubmissionStatus, withSkip } from "./api";
 import { t } from "./messages";
+import { SkipToggle, useSkipped } from "./SkipToggle";
 import { SubmitPanel } from "./SubmitPanel";
 
 export const toMaterialFile = (f: InlineFile) => ({ key: f.fileurl, name: f.filename, url: f.fileurl, size: f.filesize, mime: f.mimetype, ext: fileExt(f.filename), time: f.timemodified, path: "/" });
@@ -48,6 +49,7 @@ export function AssignmentPage() {
 	const assignments = useAssignments(ids);
 	const a = assignments.data?.find(x => x.cmid === Number(cmid));
 	const status = useSubmissionStatus(a?.id);
+	const skipped = useSkipped("submit", Number(cmid));
 	useDocumentTitle(a?.name);
 
 	if (assignments.error) return <ErrorNote error={assignments.error} retry={assignments.refetch} />;
@@ -56,6 +58,7 @@ export function AssignmentPage() {
 
 	const rules = assignRules(a);
 	const state = taskState(a, status.data);
+	const shown = withSkip(state, skipped);
 	const st = status.data;
 	const files = submissionFiles(st);
 	const sub = st?.lastattempt?.submission;
@@ -76,10 +79,12 @@ export function AssignmentPage() {
 				{course && <CourseTag course={course} link />}
 				<h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{a.name}</h1>
 				<div className="mt-3 flex flex-wrap items-center gap-2">
-					<span className={`badge badge-soft ${state === "submitted" || state === "graded" ? "badge-success" : state === "late" ? "badge-error" : state === "todo" ? "badge-info" : "badge-ghost"}`}>
-						{TASK_STATE_LABEL[state]}
+					<span
+						className={`badge badge-soft ${shown === "submitted" || shown === "graded" ? "badge-success" : shown === "skipped" ? "badge-neutral" : shown === "late" ? "badge-error" : shown === "todo" ? "badge-info" : "badge-ghost"}`}
+					>
+						{TASK_STATE_LABEL[shown]}
 					</span>
-					{cd && (state === "todo" || state === "late") && (
+					{cd && (shown === "todo" || shown === "late") && (
 						<span className={`text-sm ${cd.urgency === "critical" || cd.urgency === "overdue" ? "text-error" : "text-base-content/65"}`}>{cd.text}</span>
 					)}
 				</div>
@@ -152,6 +157,8 @@ export function AssignmentPage() {
 						)}
 					</section>
 					<SubmitPanel assignment={a} status={st} state={state} rules={rules} existing={files} />
+					{/* Once it's handed in or graded the mark changes nothing, so it's only offered for undoing. */}
+					{(skipped || (state !== "submitted" && state !== "graded")) && <SkipToggle kind="submit" cmid={a.cmid} />}
 					<a className="btn btn-ghost btn-sm w-full" href={e3Link(`/mod/assign/view.php?id=${a.cmid}`)} target="_blank" rel="noreferrer">
 						<ArrowSquareOutIcon size={15} />
 						{t("openOnE3")}
