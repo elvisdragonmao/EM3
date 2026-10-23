@@ -3,7 +3,7 @@ import { CourseGlyph, courseText, resolveLook } from "@/features/courses/look";
 import type { ParsedCourse } from "@/features/courses/parse";
 import { type TimetableEntry, usePrefs } from "@/features/preferences/store";
 import { PageTitle } from "@/shared/ui/States";
-import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, PaintBrushIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, DownloadSimpleIcon, PaintBrushIcon } from "@phosphor-icons/react";
 import { gridArrow } from "@/shared/keyboard/hotkeys";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
@@ -13,7 +13,7 @@ import { syllabusUrl } from "./import";
 import { t } from "./messages";
 import { blocksFor, blockTime, classMoment, useNow } from "./now";
 import { dayIndex, formatSlots, overlaps, parseScheduleCode, periodByCode, periodEndMinutes, periodStartMinutes, schoolPeriods } from "./periods";
-import { useManualTimetable, useTimetable } from "./schedule";
+import { useFillFromSyllabus, useManualTimetable, useTimetable } from "./schedule";
 import { useTimesSource } from "./source";
 
 /** Height of one grid row. Rows are even, like the school's own timetable, not stretched to the real breaks. */
@@ -282,6 +282,7 @@ export function TimetablePage() {
 				</section>
 
 				<section className="space-y-2">
+					{school.fromSyllabus && <SyllabusFill local={source !== "syllabus"} />}
 					<p id={hintId} className="flex items-center gap-1.5 px-1 text-xs text-base-content/65">
 						<PaintBrushIcon size={14} />
 						{source === "moodle" ? t("hintMoodle", school.example) : source === "syllabus" ? t("hintSyllabus", school.example) : t("hint")}
@@ -309,6 +310,45 @@ export function TimetablePage() {
 					)}
 				</section>
 			</div>
+		</div>
+	);
+}
+
+/** Fills every course without a time from NYCU's syllabus, in either version. */
+function SyllabusFill({ local }: { local: boolean }) {
+	const fill = useFillFromSyllabus();
+	const [busy, setBusy] = useState(false);
+	const [done, setDone] = useState("");
+	const [error, setError] = useState("");
+
+	async function run() {
+		setBusy(true);
+		setDone("");
+		setError("");
+		try {
+			const r = await fill();
+			setDone(r.kind === "nothingBlank" ? t("nothingBlank") : r.filled ? t("fetched", r.filled, r.missing) : t("fetchedNone"));
+		} catch (err) {
+			setError(t("fetchFailed", err instanceof Error ? err.message : String(err)));
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<div className="card-quiet p-3">
+			<button type="button" className="btn w-full btn-soft btn-sm btn-primary" disabled={busy} onClick={() => void run()}>
+				{busy ? <span className="loading loading-xs loading-spinner" aria-hidden /> : <DownloadSimpleIcon size={15} />}
+				{busy ? t("fetching") : t("fetchSyllabus")}
+			</button>
+			{/* The local version otherwise never contacts the EM3 server, so say what this sends. */}
+			{local && <p className="mt-1.5 text-xs text-base-content/65">{t("fetchNote")}</p>}
+			<p role="status" className="text-xs text-base-content/65 not-empty:mt-1.5">
+				{done}
+			</p>
+			<p role="alert" className="text-xs text-error not-empty:mt-1.5">
+				{error}
+			</p>
 		</div>
 	);
 }

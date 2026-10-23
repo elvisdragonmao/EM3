@@ -1,10 +1,10 @@
 import { NYCU_KEY, NYCU_MAX_KEYS } from "../src/features/timetable/syllabus";
-import { requireUser } from "./auth";
 import type { Env } from "./env";
 import { HttpError, json, route } from "./http";
 
 // NYCU syllabus class times: GET /api/nycu/schedules (DESIGN.md, 伺服器版). The syllabus is
-// public, so rows are shared by everyone and keyed by course, not by user.
+// public, so rows are shared by everyone and keyed by course, not by user, and the route needs
+// no session: the local version's 「從課綱抓取」 button calls it too.
 
 const OUTLINE = "https://timetable.nycu.edu.tw/?r=main/getCrsOutlineBase";
 const TTL = 24 * 3600_000;
@@ -97,7 +97,6 @@ export function parseKeys(param: string | null): string[] {
 
 export const routes = [
 	route("GET", "/api/nycu/schedules", async ctx => {
-		await requireUser(ctx);
 		const keys = parseKeys(ctx.url.searchParams.get("courses"));
 		return json(await schedules(ctx.env, keys, Date.now(), ctx.waitUntil));
 	})

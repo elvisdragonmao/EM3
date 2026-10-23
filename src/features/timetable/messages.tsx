@@ -32,7 +32,14 @@ export const t = defineMessages({
 		clearTitle: "清除時間",
 		clearCustom: (course: string) => `清除${course}自訂的上課時間`,
 		clearCustomTitle: "清除自訂時間，改用 Moodle 上的時間",
-		clearSyllabusTitle: "清除自訂時間，改用課綱上的時間"
+		clearSyllabusTitle: "清除自訂時間，改用課綱上的時間",
+		fetchSyllabus: "從課綱抓取上課時間",
+		fetching: "正在從課綱抓取…",
+		fetchNote: "只會把課號送到 EM3 伺服器查公開的課綱，不會送出你的帳號。",
+		fetched: (filled: number, missing: number) => `已填入 ${filled} 門課的上課時間${missing ? `，${missing} 門課在課綱上沒有時間` : ""}。`,
+		fetchedNone: "課綱上沒有這些空白課程的上課時間。",
+		nothingBlank: "每門課都已經有上課時間了。",
+		fetchFailed: (reason: string) => `抓取失敗（${reason}），請稍後再試。`
 	},
 	en: {
 		title: "Timetable",
@@ -59,7 +66,15 @@ export const t = defineMessages({
 		clearTitle: "Clear times",
 		clearCustom: (course: string) => `Clear your own class times for ${course}`,
 		clearCustomTitle: "Clear your times and use Moodle's",
-		clearSyllabusTitle: "Clear your times and use the syllabus's"
+		clearSyllabusTitle: "Clear your times and use the syllabus's",
+		fetchSyllabus: "Fetch class times from the syllabus",
+		fetching: "Fetching from the syllabus…",
+		fetchNote: "Only course codes go to the EM3 server, which looks them up in the public syllabus. Your account isn't sent.",
+		fetched: (filled: number, missing: number) =>
+			`Filled in class times for ${filled} course${filled === 1 ? "" : "s"}${missing ? `; ${missing} ha${missing === 1 ? "s" : "ve"} no time in the syllabus` : ""}.`,
+		fetchedNone: "The syllabus has no class times for these blank courses.",
+		nothingBlank: "Every course already has class times.",
+		fetchFailed: (reason: string) => `Couldn't fetch (${reason}). Try again later.`
 	},
 	ja: {
 		title: "時間割",
@@ -86,7 +101,14 @@ export const t = defineMessages({
 		clearTitle: "時間をクリア",
 		clearCustom: (course: string) => `${course} に自分で設定した授業時間をクリア`,
 		clearCustomTitle: "自分で設定した時間をクリアして Moodle の時間を使う",
-		clearSyllabusTitle: "自分で設定した時間をクリアしてシラバスの時間を使う"
+		clearSyllabusTitle: "自分で設定した時間をクリアしてシラバスの時間を使う",
+		fetchSyllabus: "シラバスから授業時間を取得",
+		fetching: "シラバスから取得しています…",
+		fetchNote: "授業コードだけを EM3 サーバーに送り、公開シラバスを調べます。アカウント情報は送られません。",
+		fetched: (filled: number, missing: number) => `${filled} 件の授業時間を入力しました${missing ? `。${missing} 件はシラバスに時間がありません` : ""}。`,
+		fetchedNone: "空欄の授業はシラバスにも時間がありませんでした。",
+		nothingBlank: "すべての授業に時間が入っています。",
+		fetchFailed: (reason: string) => `取得できませんでした（${reason}）。しばらくしてからもう一度お試しください。`
 	},
 	emoji: {
 		title: "🗓️🎓",
@@ -113,6 +135,13 @@ export const t = defineMessages({
 		clearTitle: "🧹⏰",
 		clearCustom: (course: string) => `🧹 ${course} ✏️⏰`,
 		clearCustomTitle: "🧹✏️ → 🎓⏰",
-		clearSyllabusTitle: "🧹✏️ → 📜⏰"
+		clearSyllabusTitle: "🧹✏️ → 📜⏰",
+		fetchSyllabus: "📜⬇️⏰",
+		fetching: "📜⏳",
+		fetchNote: "🔢 → 🖥️ → 📜 · 🚫🔑",
+		fetched: (filled: number, missing: number) => `✅ ${filled}${missing ? ` · 🤷 ${missing}` : ""}`,
+		fetchedNone: "📜🤷",
+		nothingBlank: "⏰✅",
+		fetchFailed: (reason: string) => `❌ (${reason})`
 	}
 });

@@ -1,5 +1,5 @@
-// Client for the EM3 server's /api (DESIGN.md, 伺服器版). Only the server version calls it;
-// the local version never contacts EM3's server.
+// Client for the EM3 server's /api (DESIGN.md, 伺服器版). Only the server version calls it,
+// except for the timetable's 「從課綱抓取」 button, which the local version has too.
 
 export class ServerError extends Error {
 	constructor(

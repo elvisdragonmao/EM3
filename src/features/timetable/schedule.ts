@@ -54,6 +54,13 @@ function useMoodleSchedules(enabled: boolean): Record<string, TimetableEntry> {
 
 type SyllabusTimes = Record<string, string | null>;
 
+/** Asks the EM3 server for syllabus time codes, at most NYCU_MAX_KEYS courses per request. */
+async function fetchSyllabusTimes(keys: string[], signal?: AbortSignal): Promise<SyllabusTimes> {
+	const parts: SyllabusTimes[] = [];
+	for (let i = 0; i < keys.length; i += NYCU_MAX_KEYS) parts.push(await api<SyllabusTimes>(`nycu/schedules?courses=${encodeURIComponent(keys.slice(i, i + NYCU_MAX_KEYS).join(","))}`, { signal }));
+	return Object.assign({}, ...parts) as SyllabusTimes;
+}
+
 /** Class times from NYCU's syllabus, read through the EM3 server (server version only). */
 function useSyllabusSchedules(enabled: boolean): Record<string, TimetableEntry> {
 	const school = schoolPeriods();
@@ -64,11 +71,7 @@ function useSyllabusSchedules(enabled: boolean): Record<string, TimetableEntry> 
 	const select = useCallback((data: SyllabusTimes) => entriesFromSyllabus(keys, data, school!.parse), [keys, school]);
 	const { data } = useQuery({
 		queryKey: ["nycu-schedules", list.join(",")],
-		queryFn: async ({ signal }) => {
-			const parts: SyllabusTimes[] = [];
-			for (let i = 0; i < list.length; i += NYCU_MAX_KEYS) parts.push(await api<SyllabusTimes>(`nycu/schedules?courses=${encodeURIComponent(list.slice(i, i + NYCU_MAX_KEYS).join(","))}`, { signal }));
-			return Object.assign({}, ...parts) as SyllabusTimes;
-		},
+		queryFn: ({ signal }) => fetchSyllabusTimes(list, signal),
 		enabled: enabled && ready && list.length > 0,
 		// The server leaves out courses it couldn't reach the syllabus for; ask again soon for those.
 		staleTime: q => (q.state.data && list.every(k => k in q.state.data!) ? STALE : 5 * 60_000),
@@ -93,4 +96,27 @@ export function useTimetable(): Record<string, TimetableEntry> {
 export function useManualTimetable(): Record<string, TimetableEntry> {
 	const site = useSession(s => s.baseUrl);
 	return usePrefs(s => (site === DEFAULT_MOODLE_URL ? s.timetable : (s.siteTimetables[site] ?? EMPTY)));
+}
+
+export type FillResult = { kind: "nothingBlank" } | { kind: "filled"; filled: number; missing: number };
+
+/**
+ * The timetable's 「從課綱抓取」 button: looks up this semester's courses that have no time yet
+ * and saves what the syllabus says as the student's own entries. Both versions have it; it is
+ * the only time the local version calls the EM3 server, and only with course codes (the route
+ * needs no session).
+ */
+export function useFillFromSyllabus() {
+	const { currentCourses } = useCourseIndex();
+	const timetable = useTimetable();
+	const setTimetable = usePrefs(s => s.setTimetable);
+	return async (): Promise<FillResult> => {
+		const school = schoolPeriods();
+		const blank = new Map([...nycuKeys(currentCourses)].filter(([, id]) => !timetable[id]?.slots.length));
+		if (!school || !blank.size) return { kind: "nothingBlank" };
+		const entries = entriesFromSyllabus(blank, await fetchSyllabusTimes([...blank.keys()]), school.parse);
+		for (const [id, entry] of Object.entries(entries)) setTimetable(Number(id), entry);
+		const filled = Object.keys(entries).length;
+		return { kind: "filled", filled, missing: blank.size - filled };
+	};
 }
