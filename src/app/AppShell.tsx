@@ -7,13 +7,16 @@ import { CommandPalette, useCommandPalette } from "@/shared/ui/CommandPalette";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { focusSearch, isApple, MOD_LABEL, moveListFocus, useHotkeys } from "@/shared/keyboard/hotkeys";
 import { ShortcutsDialog } from "@/shared/keyboard/ShortcutsDialog";
-import { CalendarDotsIcon, EnvelopeSimpleIcon, KeyboardIcon, MagnifyingGlassIcon, TableIcon } from "@phosphor-icons/react";
+import { CalendarDotsIcon, EnvelopeSimpleIcon, KeyboardIcon, MagnifyingGlassIcon, SparkleIcon, TableIcon } from "@phosphor-icons/react";
 import { mailSupported, useMailUnread } from "@/features/mail/api";
 import { motion, MotionConfig } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { t } from "./messages";
 import { NAV, visibleNav } from "./nav";
 import { ModeDialog } from "@/features/server/ModeDialog";
+import { WhatsNewDialog } from "@/features/updates/WhatsNewDialog";
+import { t as tu } from "@/features/updates/messages";
+import { CURRENT_VERSION } from "@/features/updates/releases";
 import { useServerLink } from "@/features/server/useServerLink";
 import { Logo } from "@/shared/ui/Logo";
 import { Avatar } from "@/shared/ui/Avatar";
@@ -83,6 +86,7 @@ export function AppShell() {
 			<FilePreviewHost />
 			<LeaveToE3Host />
 			<ModeDialog />
+			<WhatsNewDialog />
 		</MotionConfig>
 	);
 }
@@ -176,14 +180,21 @@ function Sidebar({ onSearch, onHelp }: { onSearch: () => void; onHelp: () => voi
 				</nav>
 			</div>
 
-			<button onClick={onHelp} className="-mb-3 flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm text-base-content/70 hover:text-base-content">
-				<KeyboardIcon size={18} />
-				{t("shortcuts")}
-				<span className="ml-auto flex gap-0.5">
-					<kbd className="kbd kbd-xs">{MOD_LABEL}</kbd>
-					<kbd className="kbd kbd-xs">/</kbd>
-				</span>
-			</button>
+			<div className="-mb-3 flex flex-col">
+				<Link to="/update" className="flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm text-base-content/70 hover:text-base-content">
+					<SparkleIcon size={18} />
+					{tu("title")}
+					<span className="ml-auto text-xs tabular-nums">v{CURRENT_VERSION}</span>
+				</Link>
+				<button onClick={onHelp} className="flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm text-base-content/70 hover:text-base-content">
+					<KeyboardIcon size={18} />
+					{t("shortcuts")}
+					<span className="ml-auto flex gap-0.5">
+						<kbd className="kbd kbd-xs">{MOD_LABEL}</kbd>
+						<kbd className="kbd kbd-xs">/</kbd>
+					</span>
+				</button>
+			</div>
 
 			{me && (
 				<Link to="/settings" aria-label={t("account", me.fullname)} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-base-content/[0.04]">

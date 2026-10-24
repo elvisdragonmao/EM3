@@ -7,12 +7,13 @@ import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { MOD_LABEL } from "@/shared/keyboard/hotkeys";
 import { LanguageSelect } from "@/shared/ui/LanguagePicker";
 import { Logo } from "@/shared/ui/Logo";
-import { ArrowRightIcon, GithubLogoIcon, StarIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, GithubLogoIcon, SparkleIcon, StarIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Fragment, type ReactNode, useRef } from "react";
 import { t } from "./messages";
+import { t as tu } from "@/features/updates/messages";
 
 export const REPO = "https://github.com/elvisdragonmao/EM3";
 
@@ -154,6 +155,10 @@ export function LandingPage() {
 						</Link>
 						<nav className="ml-auto flex min-w-0 items-center gap-1 text-sm">
 							<LanguageSelect className="min-w-0" />
+							<Link to="/update" className="btn btn-ghost btn-sm gap-1.5">
+								<SparkleIcon size={17} weight="fill" />
+								<span className="sr-only sm:not-sr-only">{tu("title")}</span>
+							</Link>
 							<a href={REPO} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm gap-1.5">
 								<GithubLogoIcon size={17} weight="fill" />
 								<span className="sr-only sm:not-sr-only">GitHub</span>
@@ -410,6 +415,10 @@ export function LandingPage() {
 								GitHub
 								<span className="sr-only">{tc("openInNewTab")}</span>
 							</a>
+							<span className="mx-2">·</span>
+							<Link to="/update" className="link link-hover">
+								{tu("title")}
+							</Link>
 							<span className="mx-2">·</span>
 							Apache-2.0
 						</span>

@@ -31,6 +31,12 @@ const welcomeRoute = createRoute({
 	component: lazyRouteComponent(() => import("@/features/landing/LandingPage"), "LandingPage")
 });
 
+const updateRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/update",
+	component: lazyRouteComponent(() => import("@/features/updates/UpdatePage"), "UpdatePage")
+});
+
 const appRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	id: "app",
@@ -164,6 +170,7 @@ const routeTree = rootRoute.addChildren([
 	loginRoute,
 	ssoRoute,
 	welcomeRoute,
+	updateRoute,
 	appRoute.addChildren([
 		dashboardRoute,
 		coursesRoute,
