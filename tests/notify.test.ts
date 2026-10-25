@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isDiscordWebhook, webhookHint } from "../worker/notify/discord.ts";
 import { courseName, formatDue, messages } from "../worker/notify/messages.ts";
-import { type ActionEvent, classify, em3Url, planReminders, readSkips, reminderText, sentKey } from "../worker/notify/reminders.ts";
+import { type ActionEvent, candidateKeys, classify, em3Url, planReminders, readSkips, reminderText, sentKey } from "../worker/notify/reminders.ts";
 
 const NOW = 1_792_648_000;
 const course = { id: 25294, fullname: "1151.515516.網路程式設計概論 Intro. to Network Programming" };
@@ -64,6 +64,17 @@ test("planReminders doesn't repeat a lead and sends the next one when it comes",
 		later.send.map(r => [r.lead, r.keys]),
 		[[3, [key(2, 10, 3)]]]
 	);
+});
+
+test("candidateKeys covers every key planReminders writes, so a sent reminder is found next run", () => {
+	const events = [due(1, 2), due(2, 10), grading(3, 20, 4)];
+	const { send } = planReminders(events, prefs, NOW, new Set());
+	const keys = send.flatMap(r => r.keys);
+	assert.ok(keys.length > 0);
+	const candidates = new Set(candidateKeys(events, prefs.leadHours));
+	for (const k of keys) assert.ok(candidates.has(k), k);
+	// The next run, with those keys loaded back, sends nothing.
+	assert.deepEqual(planReminders(events, prefs, NOW + 15 * 60, new Set(keys.filter(k => candidates.has(k)))).send, []);
 });
 
 test("planReminders reminds again after the deadline is extended", () => {

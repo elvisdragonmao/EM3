@@ -4,7 +4,7 @@ import type { Env } from "../env";
 import { HttpError, json, readJson, route, type Route } from "../http";
 import { type DiscordResult, type Embed, isDiscordWebhook, sendDiscord, webhookHint } from "./discord";
 import { messages } from "./messages";
-import { type ActionEvent, planReminders, readSkips, type Reminder, reminderText, type ReminderText } from "./reminders";
+import { type ActionEvent, candidateKeys, planReminders, readSkips, type Reminder, reminderText, type ReminderText } from "./reminders";
 import { isPushEndpoint, type PushResult, pushService, sendPush, type Vapid } from "./webpush";
 
 // Deadline and grading reminders over Web Push and Discord (DESIGN.md, 伺服器版).
@@ -161,9 +161,8 @@ async function remindUser(env: Env, user: DueUser) {
 	});
 	const events = data.events ?? [];
 	if (!events.length) return;
-	const candidates = leads.flatMap(h => events.map(e => `${e.id}:${h}`));
 	const sentRows = await env.DB.prepare("SELECT key FROM sent_notifications WHERE user_id = ? AND key IN (SELECT value FROM json_each(?))")
-		.bind(user.id, JSON.stringify(candidates))
+		.bind(user.id, JSON.stringify(candidateKeys(events, leads)))
 		.all<{ key: string }>();
 	// Assignments marked "no submission / no grading needed" live in the synced settings.
 	const prefs = await env.DB.prepare("SELECT data FROM prefs WHERE user_id = ?").bind(user.id).first<{ data: string }>();

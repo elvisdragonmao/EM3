@@ -51,6 +51,9 @@ export function readSkips(prefs: unknown): Skips {
 /** The due time is part of the key, so an extended deadline gets its reminders again. */
 export const sentKey = (eventId: number, due: number, lead: number) => `${eventId}:${due}:${lead}`;
 
+/** Every key planReminders may look up for these events, to load the sent ones in one query. */
+export const candidateKeys = (events: ActionEvent[], leadHours: number[]) => leadHours.flatMap(h => events.map(e => sentKey(e.id, e.timesort, h)));
+
 /** Students get "due"/"close"/… events with a submit-type action; graders get "gradingdue" with the number to grade. */
 export function classify(e: ActionEvent): Reminder["kind"] | null {
 	if (!e.action?.actionable) return null;
