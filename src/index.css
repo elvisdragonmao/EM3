@@ -91,6 +91,16 @@
 		text-rendering: optimizeLegibility;
 		-webkit-tap-highlight-color: transparent;
 	}
+	/* MiSansTC centres 。、 as Traditional Chinese does; Japanese puts them bottom-left. It is left out
+	   as a fallback: Android has none of these fonts, and its sans-serif picks a Japanese one for lang="ja". */
+	:lang(ja) {
+		--font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans JP", sans-serif;
+	}
+	/* Chinese course names in the Japanese UI keep the Chinese font and its glyph shapes. */
+	:lang(ja) [lang|="zh"] {
+		--font-sans: "MiSansTC", "MiSans TC", sans-serif;
+		font-family: var(--font-sans);
+	}
 	body {
 		@apply bg-base-200 font-sans;
 		font-feature-settings: "ss01", "cv11";
@@ -261,6 +271,13 @@
 .fieldset-label,
 .fieldset-legend + .label {
 	color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+/* Japanese headings break between phrases and never leave a lone 「ず。」 on the last line.
+   Unlayered to beat text-balance; the longhand keeps truncate's nowrap. */
+:lang(ja):is(h1, h2, h3) {
+	word-break: auto-phrase;
+	text-wrap-style: pretty;
 }
 
 /* The 「減少動畫」 setting also stops CSS animations and transitions. */
