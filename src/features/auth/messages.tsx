@@ -90,10 +90,10 @@ export const t = defineMessages({
 	},
 	ja: {
 		docTitle: "ログイン",
-		tagline: "もっと速く、人にやさしい Moodle",
+		tagline: "もっと速く、もっと人にやさしい Moodle",
 		signInWithE3: "陽明交通大学 E3 でログイン",
-		school: "学校",
-		otherSchool: "その他の学校／Moodle の URL を指定",
+		school: "大学",
+		otherSchool: "その他の大学／Moodle の URL を指定",
 		moodleUrl: "Moodle の URL",
 		moodleUrlHint: "Moodle のトップページかログインページの URL を貼り付けられます。",
 		username: "アカウントまたは学籍番号",
@@ -104,29 +104,29 @@ export const t = defineMessages({
 		signingIn: "ログイン中…",
 		invalidLogin: "アカウントまたはパスワードが正しくありません",
 		signInFailed: "ログインできませんでした。しばらくしてからもう一度お試しください。",
-		useNycu: "陽明交通大学 E3 に戻す",
-		chooseOtherSchool: "陽明交通大学以外の学生はこちらから学校を選択",
-		staticSite: "パスワードは学校の Moodle にだけ送られ、EM3 のサーバーには送られません。",
+		useNycu: "陽明交通大学 E3 に切り替える",
+		chooseOtherSchool: "陽明交通大学以外の学生はこちらから大学を選択",
+		staticSite: "パスワードは大学の Moodle に直接送信され、EM3 のサーバーには一切送信されません。",
 		whatIsEm3: "EM3 とは？",
-		ssoAllow: "ブラウザに web+emthree リンクを開くか聞かれたら「許可」を選んでください。ログインが終わると EM3 に戻ります。",
+		ssoAllow: "ブラウザで「web+emthree」リンクを開くか確認されたら、「許可」を選択してください。ログイン完了後、自動的に EM3 に戻ります。",
 		ssoBlocked: (copy: ReactNode, reask: ReactNode) => (
 			<>
-				確認を閉じると Chrome はブロックとして扱います。{copy}でブロックを解除してから、{reask}。
+				ポップアップを閉じると Chrome にブロックされます。{copy}でブロックを解除してから、{reask}。
 			</>
 		),
 		copyUrl: (url: string) => `${url} をコピー`,
-		reask: "もう一度確認する",
+		reask: "もう一度お試しください",
 		ssoStartFailed: "シングルサインオンを開始できませんでした。このサイトがデータを保存できるようブラウザで許可されているか確認してください。",
-		ssoButton: "学校のシングルサインオン（SSO）でログイン",
+		ssoButton: "大学のシングルサインオン（SSO）でログイン",
 		ssoNotBack: "ログイン後に EM3 に戻らない場合",
 		ssoStepCopy: (page: string, link: ReactNode) => (
 			<>
 				{page} の完了ページで「{link}」を長押しまたは右クリックし、リンクをコピーします。
 			</>
 		),
-		ssoStepPaste: "下の欄に貼り付けて「ログインを完了」を選びます。",
+		ssoStepPaste: "下の欄に貼り付けて「ログイン完了」を押します。",
 		ssoLinkLabel: "シングルサインオンのリンク",
-		finishSignIn: "ログインを完了",
+		finishSignIn: "ログイン完了",
 		ssoNoLink: "ログインリンクを受け取れませんでした",
 		backToLogin: "ログインページに戻る",
 		ssoSigningIn: "シングルサインオンを完了しています…"
