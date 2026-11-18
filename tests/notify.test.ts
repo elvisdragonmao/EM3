@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { type Activity, planActivities } from "../worker/notify/activities.ts";
 import { isDiscordWebhook, webhookHint } from "../worker/notify/discord.ts";
 import { courseName, formatDue, messages } from "../worker/notify/messages.ts";
 import { type ActionEvent, candidateKeys, classify, em3Url, planReminders, readSkips, reminderText, sentKey } from "../worker/notify/reminders.ts";
@@ -191,5 +192,29 @@ test("selecting hourly alone schedules reminders even without individual leads",
 	assert.deepEqual(
 		send.map(r => r.lead),
 		[1]
+	);
+});
+
+test("new activity alerts seed existing coursework and detect newly opened work, including without deadlines", () => {
+	const item = (cmid: number, opens = 0, due = 0): Activity => ({ cmid, course, kind: cmid === 2 ? "quiz" : "assign", name: `Activity ${cmid}`, opens, due });
+	const existing = item(1);
+	const scheduled = item(2, NOW + 300, NOW + 1800);
+	const baseline = planActivities([existing, scheduled], null, NOW);
+	assert.deepEqual([...baseline.seen], [1]);
+	assert.deepEqual(baseline.send, []);
+	const noDeadline = item(3);
+	const expired = item(4, 0, NOW - 1);
+	const { seen, send } = planActivities([existing, scheduled, noDeadline, expired], [...baseline.seen], NOW + 300);
+	assert.deepEqual(
+		send.map(a => a.cmid),
+		[2, 3]
+	);
+	assert.deepEqual([...seen], [1, 4]);
+	// A failed send is eligible at the next poll, while edits to known work do not notify again.
+	seen.add(2);
+	const next = planActivities([{ ...existing, due: NOW + 600 }, scheduled, noDeadline], [...seen], NOW + 450);
+	assert.deepEqual(
+		next.send.map(a => a.cmid),
+		[3]
 	);
 });

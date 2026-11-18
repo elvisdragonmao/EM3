@@ -9,6 +9,7 @@ export interface NotifySettings {
 	enabled: boolean;
 	leadHours: number[];
 	hourlyLastDay: boolean;
+	newActivities: boolean;
 	deadlines: boolean;
 	grading: boolean;
 	/** The webhook itself never comes back from the server; only a masked hint. */
@@ -20,6 +21,7 @@ export interface NotifyPatch {
 	enabled?: boolean;
 	leadHours?: number[];
 	hourlyLastDay?: boolean;
+	newActivities?: boolean;
 	deadlines?: boolean;
 	grading?: boolean;
 	discordWebhook?: string | null;

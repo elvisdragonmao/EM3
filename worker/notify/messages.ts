@@ -8,6 +8,7 @@ interface Dict {
 	left: (minutes: number) => string;
 	dueBody: (course: string, left: string, at: string) => string;
 	gradingTitle: (activity: string) => string;
+	activityTitle: (name: string, quiz: boolean) => string;
 	gradingBody: (course: string, count: number, left: string, at: string) => string;
 	course: string;
 	due: string;
@@ -28,6 +29,7 @@ const dicts: Record<NotifyLocale, Dict> = {
 		},
 		dueBody: (course, left, at) => `${course}・${left}截止（${at}）`,
 		gradingTitle: a => `評分提醒：${a}`,
+		activityTitle: (name, quiz) => `新${quiz ? "測驗" : "作業"}：${name}`,
 		gradingBody: (course, n, left, at) => `${course}・還有 ${n} 份待評分，${left}到期（${at}）`,
 		course: "課程",
 		due: "截止時間",
@@ -44,6 +46,7 @@ const dicts: Record<NotifyLocale, Dict> = {
 		},
 		dueBody: (course, left, at) => `${course} · due ${left} (${at})`,
 		gradingTitle: a => `To grade: ${a}`,
+		activityTitle: (name, quiz) => `New ${quiz ? "quiz" : "assignment"}: ${name}`,
 		gradingBody: (course, n, left, at) => `${course} · ${n} submission${n === 1 ? "" : "s"} to grade, due ${left} (${at})`,
 		course: "Course",
 		due: "Due",
@@ -60,6 +63,7 @@ const dicts: Record<NotifyLocale, Dict> = {
 		},
 		dueBody: (course, left, at) => `${course}・${left}に締め切り（${at}）`,
 		gradingTitle: a => `採点リマインダー：${a}`,
+		activityTitle: (name, quiz) => `新しい${quiz ? "小テスト" : "課題"}：${name}`,
 		gradingBody: (course, n, left, at) => `${course}・未採点 ${n} 件、${left}に期限（${at}）`,
 		course: "授業",
 		due: "締め切り",
@@ -76,6 +80,7 @@ const dicts: Record<NotifyLocale, Dict> = {
 		},
 		dueBody: (course, left, at) => `📚 ${course} · ${left} · 🗓️ ${at}`,
 		gradingTitle: a => `✍️💯 ${a}`,
+		activityTitle: (name, quiz) => `🆕 ${quiz ? "🧪" : "📝"} ${name}`,
 		gradingBody: (course, n, left, at) => `📚 ${course} · 📝×${n} · ${left} · 🗓️ ${at}`,
 		course: "📚",
 		due: "⏰",

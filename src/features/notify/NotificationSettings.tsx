@@ -64,6 +64,15 @@ export function NotificationSettings() {
 						{t("gradingHint")}
 					</p>
 				</div>
+				<div className="border-t hairline pt-4">
+					<label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium">
+						{t("newActivities")}
+						<input type="checkbox" className="toggle toggle-sm" aria-describedby="notify-new-activities-hint" checked={data.newActivities} onChange={e => save({ newActivities: e.target.checked })} />
+					</label>
+					<p id="notify-new-activities-hint" className="mt-1 text-xs text-base-content/65">
+						{t("newActivitiesHint")}
+					</p>
+				</div>
 				<p role="alert" className="text-sm text-error empty:hidden">
 					{update.error && t("saveFailed", reason(update.error))}
 				</p>
