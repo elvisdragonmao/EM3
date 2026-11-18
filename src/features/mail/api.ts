@@ -85,24 +85,11 @@ export function useMailIndex(folder: MailFolder, itemid: number, query: string, 
 	});
 }
 
-/** Reading a message marks it read on the school's site, exactly like opening it there. */
-export function useMailMessage(id: number | undefined) {
-	const qc = useQueryClient();
+export function useMailMessage(id: number) {
 	return useQuery({
 		queryKey: ["mail", "message", id],
-		enabled: !!id,
 		staleTime: 5 * 60_000,
-		queryFn: async () => {
-			const m = await call<MailMessage>("get_message", { id: id! });
-			// The original local_mail (CCU) returns the message without marking it read; NYCU's fork marks it itself.
-			// A failed write must not hide a message that was read fine, so it only logs.
-			if (m.unread && plugin() === "mail") await call<null>("set_unread", { id: id!, unread: false }).catch(console.warn);
-			m.unread = false;
-			void qc.invalidateQueries({ queryKey: ["mail", "unread"] });
-			void qc.invalidateQueries({ queryKey: ["mail", "menu"] });
-			qc.setQueriesData<{ messages: MailSummary[] }>({ queryKey: ["mail", "index"] }, old => (old ? { ...old, messages: old.messages.map(x => (x.id === id ? { ...x, unread: false } : x)) } : old));
-			return m;
-		}
+		queryFn: () => call<MailMessage>("get_message", { id })
 	});
 }
 
@@ -110,10 +97,11 @@ export function useSetUnread() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, unread }: { id: number; unread: boolean }) => call<null>("set_unread", { id, unread }),
-		onSuccess: (_d, { id, unread }) => {
+		onSuccess: async (_d, { id, unread }) => {
+			await qc.cancelQueries({ queryKey: ["mail", "index"] });
+			qc.setQueryData<MailMessage>(["mail", "message", id], old => (old ? { ...old, unread } : old));
 			qc.setQueriesData<{ messages: MailSummary[] }>({ queryKey: ["mail", "index"] }, old => (old ? { ...old, messages: old.messages.map(x => (x.id === id ? { ...x, unread } : x)) } : old));
-			void qc.invalidateQueries({ queryKey: ["mail", "unread"] });
-			void qc.invalidateQueries({ queryKey: ["mail", "menu"] });
+			await Promise.all([qc.invalidateQueries({ queryKey: ["mail", "unread"] }), qc.invalidateQueries({ queryKey: ["mail", "menu"] }), qc.invalidateQueries({ queryKey: ["mail", "index"] })]);
 		}
 	});
 }

@@ -8,7 +8,7 @@ import { cleanHtml, fileExt, humanSize } from "@/lib/moodle/files";
 import { tc } from "@/i18n/common";
 import { fullDateTime } from "@/lib/time/relative";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import { useHotkeys } from "@/shared/keyboard/hotkeys";
+import { isTyping, useHotkeys } from "@/shared/keyboard/hotkeys";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago } from "@/shared/ui/Time";
 import {
@@ -66,13 +66,20 @@ function MailInbox() {
 
 	const move = (dir: 1 | -1) => {
 		const i = messages.findIndex(m => m.id === openId);
-		const next = messages[i < 0 ? 0 : Math.min(messages.length - 1, Math.max(0, i + dir))];
+		const next = messages[i < 0 ? (dir === 1 ? 0 : messages.length - 1) : Math.min(messages.length - 1, Math.max(0, i + dir))];
 		if (next) set({ m: next.id }, true);
 	};
 	useHotkeys([
 		{ keys: "j", run: () => move(1) },
 		{ keys: "k", run: () => move(-1) },
-		{ keys: "escape", run: () => set({ m: undefined }) }
+		{
+			keys: "escape",
+			inInput: true,
+			run: e => {
+				if (isTyping(e.target)) (e.target as HTMLElement).blur();
+				else if (openId) void set({ m: undefined });
+			}
+		}
 	]);
 
 	const courseTitle = search.course ? menu.data?.courses.find(c => c.id === search.course)?.fullname : undefined;
@@ -183,7 +190,7 @@ function MailInbox() {
 					<AnimatePresence mode="wait">
 						{openId ? (
 							<motion.div key={openId} className="lg:h-full" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}>
-								<Reader id={openId} onBack={() => set({ m: undefined })} />
+								<Reader id={openId} listedUnread={messages.find(row => row.id === openId)?.unread} onBack={() => set({ m: undefined })} />
 							</motion.div>
 						) : (
 							<div className="card-quiet hidden h-full place-items-center text-sm text-base-content/65 lg:grid">{t("pick")}</div>
@@ -291,9 +298,17 @@ function MailRow({ m, active, folder, onOpen }: { m: MailSummary; active: boolea
 	);
 }
 
-function Reader({ id, onBack }: { id: number; onBack: () => void }) {
+function Reader({ id, listedUnread, onBack }: { id: number; listedUnread?: boolean; onBack: () => void }) {
 	const { data: m, isPending, error, refetch } = useMailMessage(id);
-	const setUnread = useSetUnread();
+	const { mutate: setUnread, isPending: savingReadState, error: readStateError } = useSetUnread();
+	const handledOpen = useRef(false);
+	const unread = !!(m?.unread || listedUnread);
+	// Mark read once per opening; a manual change in this reader takes precedence.
+	useEffect(() => {
+		if (!m || !unread || handledOpen.current) return;
+		handledOpen.current = true;
+		setUnread({ id, unread: false });
+	}, [id, m, setUnread, unread]);
 	const { byId } = useCourseIndex();
 	const html = useMemo(() => (m ? cleanHtml(m.format === 1 ? m.content : m.content.replace(/\n/g, "<br>")) : ""), [m]);
 	const [showThread, setShowThread] = useState(false);
@@ -317,13 +332,13 @@ function Reader({ id, onBack }: { id: number; onBack: () => void }) {
 						type="button"
 						className="btn btn-ghost btn-sm"
 						onClick={() => {
-							setUnread.mutate({ id, unread: true });
-							onBack();
+							handledOpen.current = true;
+							setUnread({ id, unread: !unread });
 						}}
-						disabled={setUnread.isPending}
+						disabled={savingReadState}
 					>
 						<EnvelopeOpenIcon size={16} />
-						{t("markUnread")}
+						{t(unread ? "markRead" : "markUnread")}
 					</button>
 					<a className="btn btn-sm" href={mailE3Url(id)} target="_blank" rel="noreferrer">
 						<ArrowBendUpLeftIcon size={16} />
@@ -332,6 +347,9 @@ function Reader({ id, onBack }: { id: number; onBack: () => void }) {
 					</a>
 				</div>
 			</div>
+			<p role="alert" className="mb-2 text-sm text-error empty:hidden">
+				{readStateError && t("readStateFailed", readStateError.message)}
+			</p>
 			<h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{m.subject || t("noSubject")}</h2>
 			<dl className="mt-3 space-y-1 text-sm text-base-content/65">
 				<div className="flex gap-2">

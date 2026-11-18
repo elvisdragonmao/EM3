@@ -44,19 +44,22 @@ export function AppShell() {
 
 	useServerLink();
 
+	// Mail handles j/k itself to open messages instead of only moving focus.
+	const wide = location.pathname === "/mail";
 	useHotkeys([
 		{ keys: "mod+k", run: palette.toggle, inInput: true },
 		{ keys: "/", run: palette.open },
 		{ keys: ["mod+/", "?"], run: () => setHelpOpen(o => !o), inInput: true },
 		...visibleNav().map((n, i) => ({ keys: String(i + 1), run: () => navigate({ to: n.to }) })),
-		{ keys: "j", run: () => moveListFocus(1) },
-		{ keys: "k", run: () => moveListFocus(-1) },
+		...(wide
+			? []
+			: [
+					{ keys: "j", run: () => moveListFocus(1) },
+					{ keys: "k", run: () => moveListFocus(-1) }
+				]),
 		{ keys: "f", run: focusSearch },
-		{ keys: "escape", run: e => (e.target as HTMLElement).blur(), inInput: true }
+		...(wide ? [] : [{ keys: "escape", run: (e: KeyboardEvent) => (e.target as HTMLElement).blur(), inInput: true }])
 	]);
-
-	// Three-pane pages use the full width and scroll each pane on their own.
-	const wide = location.pathname.startsWith("/mail");
 
 	return (
 		<MotionConfig reducedMotion={motionPref === "reduced" ? "always" : "user"} transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.8 }}>
