@@ -9,6 +9,7 @@ export interface Release {
 }
 
 export const RELEASES: readonly Release[] = [
+	{ version: "0.4.0", date: "2026-11-19" },
 	{ version: "0.3.0", date: "2026-10-24" },
 	{ version: "0.2.0", date: "2026-10-22" },
 	{ version: "0.1.0", date: "2026-10-22" }
