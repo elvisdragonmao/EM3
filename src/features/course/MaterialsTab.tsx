@@ -2,7 +2,7 @@ import { useCourseContents } from "@/features/courses/api";
 import type { ParsedCourse } from "@/features/courses/parse";
 import { useCourseLook } from "@/features/courses/look";
 import { tc } from "@/i18n/common";
-import { saveBlob, safeName } from "@/lib/download";
+import { downloadUrl, saveBlob, safeName } from "@/lib/download";
 import { cleanHtml, fileUrl, humanSize } from "@/lib/moodle/files";
 import { Empty, ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago } from "@/shared/ui/Time";
@@ -23,6 +23,7 @@ import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileIcon } from "./FileIcon";
 import { openFile } from "./FilePreview";
+import { useMaterialDownloads } from "./MaterialDownloads";
 import {
 	buildMaterialsZip,
 	canStreamToDisk,
@@ -241,8 +242,10 @@ function FileRow({ f, context, isNew, compact = false, selection }: { f: Materia
 			</button>
 			<a
 				href={fileUrl(f.url, { download: true })}
+				target="_blank"
+				rel="noreferrer"
 				className="btn btn-ghost btn-sm btn-square shrink-0 opacity-60 group-hover:opacity-100"
-				aria-label={tr("downloadFile", f.name)}
+				aria-label={`${tr("downloadFile", f.name)} ${tc("openInNewTab")}`}
 				title={tc("download")}
 			>
 				<DownloadSimpleIcon size={17} />
@@ -267,9 +270,7 @@ function SelectionBar({
 	onDone: () => void;
 }) {
 	const look = useCourseLook(course)!;
-	const [progress, setProgress] = useState<ZipProgress | null>(null);
-	const [result, setResult] = useState<{ failed: string[]; error?: string } | null>(null);
-	const abort = useRef<AbortController | null>(null);
+	const downloading = useMaterialDownloads(s => !!s.job);
 	const items: PickedFile[] = materials.flatMap(m => m.files.filter(f => picked.has(f.key)).map(file => ({ file, folder: m.files.length > 1 ? m.title : undefined })));
 	const size = items.reduce((n, it) => n + it.file.size, 0);
 	const allVisible = visibleKeys.length > 0 && visibleKeys.every(k => picked.has(k));
@@ -279,39 +280,40 @@ function SelectionBar({
 	const risky = zipping && !tooBig && size > LARGE_ZIP && !stream;
 
 	useEffect(() => {
-		const onKey = (e: KeyboardEvent) => e.key === "Escape" && !progress && !document.querySelector("dialog[open]") && onDone();
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector("dialog[open]") && onDone();
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [progress, onDone]);
-	useEffect(() => () => abort.current?.abort(), []);
+	}, [onDone]);
 
 	async function download() {
-		setResult(null);
+		if (!items.length) return;
 		if (!zipping) {
-			const a = document.createElement("a");
-			a.href = fileUrl(items[0].file.url, { download: true });
-			a.click();
+			downloadUrl(fileUrl(items[0].file.url, { download: true }));
 			return;
 		}
+		if (useMaterialDownloads.getState().job) return;
 		const name = `${safeName(look.title) || tr("zipName")}.zip`;
-		const ctrl = new AbortController();
-		abort.current = ctrl;
+		const controller = new AbortController();
+		const { signal } = controller;
+		const job = { name, size, count: items.length, controller, progress: { files: 0, bytes: 0 } };
+		useMaterialDownloads.setState({ job, result: null });
+		const onProgress = (progress: ZipProgress) => {
+			if (!signal.aborted) useMaterialDownloads.setState({ job: { ...job, progress } });
+		};
 		try {
 			if (stream) {
-				// The save dialog comes first: it needs this click's user gesture.
-				const res = await streamMaterialsZip(items, name, ctrl.signal, p => setProgress(p));
-				if (res) setResult({ failed: res.failed });
+				const res = await streamMaterialsZip(items, name, signal, onProgress);
+				if (!signal.aborted && res?.failed.length) useMaterialDownloads.setState({ result: res });
 			} else {
-				setProgress({ files: 0, bytes: 0 });
-				const res = await buildMaterialsZip(items, ctrl.signal, p => setProgress(p));
-				if (res.failed.length < items.length) saveBlob(res.blob, name);
-				setResult({ failed: res.failed });
+				const { blob, failed } = await buildMaterialsZip(items, signal, onProgress);
+				if (signal.aborted) return;
+				if (failed.length < items.length) saveBlob(blob, name);
+				if (failed.length) useMaterialDownloads.setState({ result: { failed } });
 			}
-		} catch (e) {
-			if (!ctrl.signal.aborted) setResult({ failed: [], error: e instanceof Error ? e.message : String(e) });
+		} catch (error) {
+			if (!signal.aborted) useMaterialDownloads.setState({ result: { failed: [], error: error instanceof Error ? error.message : String(error) } });
 		} finally {
-			abort.current = null;
-			setProgress(null);
+			useMaterialDownloads.setState({ job: null });
 		}
 	}
 
@@ -330,21 +332,10 @@ function SelectionBar({
 		<div className="sticky bottom-24 z-10 lg:bottom-4" role="region" aria-label={tr("bulkDownload")}>
 			<div className="flex flex-wrap items-center gap-2 rounded-2xl border hairline bg-base-100/95 p-2 pl-4 shadow-lg backdrop-blur">
 				<span role="status" className="sr-only">
-					{progress ? tr("packing") : items.length ? tr("selectedSr", items.length) : ""}
+					{items.length ? tr("selectedSr", items.length) : ""}
 				</span>
 				<span className="min-w-0 grow text-sm">
-					{progress ? (
-						<>
-							{tr("packing")}{" "}
-							<span className="tabular-nums">
-								{progress.files} / {items.length}
-							</span>
-							<span className="text-base-content/65">
-								{" "}
-								· {humanSize(progress.bytes)} / {humanSize(size)}
-							</span>
-						</>
-					) : items.length ? (
+					{items.length ? (
 						<>
 							{tr("selected", items.length, <strong className="tabular-nums">{items.length}</strong>)} <span className="text-base-content/65">· {humanSize(size)}</span>
 							{note}
@@ -352,32 +343,17 @@ function SelectionBar({
 					) : (
 						<span className="text-base-content/65">{tr("pickFiles")}</span>
 					)}
-					<span role="alert">
-						{result?.error && !progress && <span className="block text-xs text-error">{tr("zipFailed", result.error)}</span>}
-						{!!result?.failed.length && !progress && <span className="block text-xs text-error">{tr("someFailed", result.failed)}</span>}
-					</span>
 				</span>
-				{progress ? (
-					<>
-						<progress className="progress progress-primary w-28" value={size ? progress.bytes : progress.files} max={size || items.length} aria-label={tr("packingProgress")} />
-						<button type="button" className="btn btn-ghost btn-sm" onClick={() => abort.current?.abort()}>
-							{tc("cancel")}
-						</button>
-					</>
-				) : (
-					<>
-						<button type="button" className="btn btn-ghost btn-sm" onClick={() => toggle(visibleKeys, !allVisible)} disabled={!visibleKeys.length}>
-							{allVisible ? tr("deselectAll") : tr("selectAll")}
-						</button>
-						<button type="button" className="btn btn-ghost btn-sm" onClick={onDone}>
-							{tr("done")}
-						</button>
-						<button type="button" className={`btn btn-sm ${risky ? "btn-warning" : "btn-primary"}`} onClick={download} disabled={!items.length || tooBig}>
-							<DownloadSimpleIcon size={16} />
-							{risky ? tr("downloadAnyway") : zipping ? tr("downloadZip") : tc("download")}
-						</button>
-					</>
-				)}
+				<button type="button" className="btn btn-ghost btn-sm" onClick={() => toggle(visibleKeys, !allVisible)} disabled={!visibleKeys.length}>
+					{allVisible ? tr("deselectAll") : tr("selectAll")}
+				</button>
+				<button type="button" className="btn btn-ghost btn-sm" onClick={onDone}>
+					{tr("done")}
+				</button>
+				<button type="button" className={`btn btn-sm ${risky ? "btn-warning" : "btn-primary"}`} onClick={download} disabled={!items.length || tooBig || (zipping && downloading)}>
+					<DownloadSimpleIcon size={16} />
+					{risky ? tr("downloadAnyway") : zipping ? tr("downloadZip") : tc("download")}
+				</button>
 			</div>
 		</div>
 	);

@@ -21,6 +21,7 @@ import { useServerLink } from "@/features/server/useServerLink";
 import { Logo } from "@/shared/ui/Logo";
 import { Avatar } from "@/shared/ui/Avatar";
 import { FilePreviewHost } from "@/features/course/FilePreview";
+import { MaterialDownloads } from "@/features/course/MaterialDownloads";
 import { LeaveToE3Host } from "@/shared/ui/LeaveToE3";
 
 const DOCK = ["/", "/tasks", "/courses", "/announcements", "/settings"] as const;
@@ -86,6 +87,7 @@ export function AppShell() {
 			</div>
 			<CommandPalette {...palette} />
 			<ShortcutsDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+			<MaterialDownloads />
 			<FilePreviewHost />
 			<LeaveToE3Host />
 			<ModeDialog />

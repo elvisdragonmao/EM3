@@ -51,7 +51,6 @@ export const t = defineMessages({
 		closePreview: "關閉預覽（Esc）",
 		previewOf: (name: string) => `預覽：${name}`,
 		previewFailed: (link: ReactNode) => <>預覽失敗，{link}</>,
-		openInNewTab: "在新分頁開啟",
 		loadingFile: "正在載入檔案",
 		loadingPct: (pct: string) => `載入中 ${pct}`,
 
@@ -134,7 +133,6 @@ export const t = defineMessages({
 		closePreview: "Close preview (Esc)",
 		previewOf: (name: string) => `Preview: ${name}`,
 		previewFailed: (link: ReactNode) => <>Couldn't preview this file. {link}</>,
-		openInNewTab: "Open it in a new tab",
 		loadingFile: "Loading file",
 		loadingPct: (pct: string) => `Loading ${pct}`,
 
@@ -220,7 +218,6 @@ export const t = defineMessages({
 		closePreview: "プレビューを閉じる（Esc）",
 		previewOf: (name: string) => `プレビュー：${name}`,
 		previewFailed: (link: ReactNode) => <>プレビューできませんでした。{link}</>,
-		openInNewTab: "新しいタブで開く",
 		loadingFile: "ファイルを読み込み中",
 		loadingPct: (pct: string) => `読み込み中 ${pct}`,
 
@@ -303,7 +300,6 @@ export const t = defineMessages({
 		closePreview: "❌",
 		previewOf: (name: string) => `👀 ${name}`,
 		previewFailed: (link: ReactNode) => <>👀💥 {link}</>,
-		openInNewTab: "↗️",
 		loadingFile: "⏳📄",
 		loadingPct: (pct: string) => `⏳ ${pct}`,
 
