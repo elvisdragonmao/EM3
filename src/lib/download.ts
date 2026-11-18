@@ -1,3 +1,12 @@
+/** Lets a remote file download without navigating away from the app. */
+export function downloadUrl(url: string) {
+	const a = document.createElement("a");
+	a.href = url;
+	a.target = "_blank";
+	a.rel = "noreferrer";
+	a.click();
+}
+
 /** Hands a generated file to the browser's download flow. */
 export function saveBlob(blob: Blob, name: string) {
 	const a = document.createElement("a");

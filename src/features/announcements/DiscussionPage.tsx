@@ -83,9 +83,11 @@ function Post({ post }: { post: ForumPost }) {
 			{post.attachments?.length > 0 && (
 				<ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
 					{post.attachments.map(f => {
-						const mf = { key: f.fileurl, name: f.filename, url: f.fileurl, size: f.filesize, mime: f.mimetype, ext: fileExt(f.filename), time: f.timemodified, path: "/" };
+						const url = f.url || f.fileurl;
+						if (!url) return null;
+						const mf = { key: url, name: f.filename, url, size: f.filesize, mime: f.mimetype, ext: fileExt(f.filename), time: f.timemodified, path: f.filepath };
 						return (
-							<li key={f.fileurl}>
+							<li key={url}>
 								<button type="button" onClick={() => openFile(mf)} className="card-quiet flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-base-content/[0.03]">
 									<FileIcon ext={mf.ext} size={28} />
 									<span className="min-w-0">

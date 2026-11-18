@@ -53,6 +53,8 @@ export function useAnnouncements(courseIds: number[], opts: { perForum?: number;
 /** When the post became visible to students. */
 export const postTime = (d: Pick<ForumDiscussion, "timestart" | "created">) => Math.max(d.timestart || 0, d.created);
 
+type ForumAttachment = Omit<InlineFile, "fileurl"> & { url?: string; fileurl?: string };
+
 export interface ForumPost {
 	id: number;
 	subject: string;
@@ -67,7 +69,7 @@ export interface ForumPost {
 	timemodified?: number;
 	unread: boolean | null;
 	isdeleted: boolean;
-	attachments: InlineFile[];
+	attachments: ForumAttachment[];
 	messageinlinefiles?: InlineFile[];
 	html?: { rating?: string | null; taglist?: string | null; authorsubheading?: string | null };
 }

@@ -1,4 +1,5 @@
 import { tc } from "@/i18n/common";
+import { downloadUrl } from "@/lib/download";
 import { fileUrl, humanSize } from "@/lib/moodle/files";
 import { ArrowSquareOutIcon, DownloadSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
@@ -29,10 +30,10 @@ const isTouch = () => window.matchMedia("(pointer: coarse)").matches;
 export function openFile(f: MaterialFile) {
 	const inline = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "mp4", "webm", "mov", "m4v", "mp3", "m4a", "wav"].includes(f.ext);
 	if (!inline) {
-		window.location.href = fileUrl(f.url, { download: true });
+		downloadUrl(fileUrl(f.url, { download: true }));
 		return;
 	}
-	if (isTouch()) {
+	if (f.ext !== "pdf" && isTouch()) {
 		window.open(fileUrl(f.url), "_blank", "noopener");
 		return;
 	}
@@ -45,6 +46,8 @@ export function FilePreviewHost() {
 	const panel = useRef<HTMLElement>(null);
 	const id = useId();
 	const open = !!file;
+	const src = file ? fileUrl(file.url) : null;
+	const pdf = usePdf(file?.ext === "pdf" ? src : null);
 	useEffect(() => {
 		if (!open) return;
 		// Behave like a modal: the page behind becomes inert, focus moves in and returns on close.
@@ -103,12 +106,14 @@ export function FilePreviewHost() {
 									{humanSize(file.size)}
 								</p>
 							</div>
-							<a className="btn btn-ghost btn-sm" href={fileUrl(file.url)} target="_blank" rel="noreferrer">
-								<ArrowSquareOutIcon size={16} />
-								<span className="sr-only sm:not-sr-only">{tr("newTab")}</span>
-								<span className="sr-only">{tc("openInNewTab")}</span>
-							</a>
-							<a className="btn btn-ghost btn-sm" href={fileUrl(file.url, { download: true })}>
+							{(file.ext !== "pdf" || pdf.blobUrl) && (
+								<a className="btn btn-ghost btn-sm" href={file.ext === "pdf" ? pdf.blobUrl! : src!} target="_blank" rel="noreferrer">
+									<ArrowSquareOutIcon size={16} />
+									<span className="sr-only sm:not-sr-only">{tr("newTab")}</span>
+									<span className="sr-only">{tc("openInNewTab")}</span>
+								</a>
+							)}
+							<a className="btn btn-ghost btn-sm" href={pdf.blobUrl ?? fileUrl(file.url, { download: true })} download={file.name} target="_blank" rel="noreferrer">
 								<DownloadSimpleIcon size={16} />
 								<span className="sr-only sm:not-sr-only">{tc("download")}</span>
 							</a>
@@ -116,9 +121,7 @@ export function FilePreviewHost() {
 								<XIcon size={18} />
 							</button>
 						</header>
-						<div className="min-h-0 grow bg-base-200">
-							<PreviewBody file={file} />
-						</div>
+						<div className="min-h-0 grow bg-base-200">{file.ext === "pdf" ? <PdfFrame {...pdf} name={file.name} download={fileUrl(file.url, { download: true })} /> : <PreviewBody file={file} />}</div>
 					</motion.aside>
 				</motion.div>
 			)}
@@ -136,7 +139,6 @@ function PreviewBody({ file }: { file: MaterialFile }) {
 				<audio src={src} controls aria-label={file.name} />
 			</div>
 		);
-	if (file.ext === "pdf") return <PdfFrame src={src} name={file.name} />;
 	return (
 		<div className="grid size-full place-items-center overflow-auto p-4">
 			<img src={src} alt={file.name} className="max-h-full max-w-full rounded-lg object-contain" />
@@ -149,18 +151,20 @@ function PreviewBody({ file }: { file: MaterialFile }) {
  * browsers apply to their PDF viewer inside frames. Loading the bytes into a
  * blob URL sidesteps that and keeps the browser's own viewer.
  */
-function PdfFrame({ src, name }: { src: string; name: string }) {
-	const [blobUrl, setBlobUrl] = useState<string | null>(null);
-	const [progress, setProgress] = useState(0);
-	const [error, setError] = useState(false);
+function usePdf(src: string | null) {
+	const [state, setState] = useState<{ src: string; blobUrl?: string; progress?: number; error?: boolean }>();
+
+	const current = state?.src === src ? state : undefined;
 
 	useEffect(() => {
+		if (!src) return;
 		let url: string | null = null;
 		const ctrl = new AbortController();
 		(async () => {
 			const res = await fetch(src, { signal: ctrl.signal });
 			const total = Number(res.headers.get("content-length")) || 0;
-			const reader = res.body!.getReader();
+			if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+			const reader = res.body.getReader();
 			const chunks: BlobPart[] = [];
 			let got = 0;
 			for (;;) {
@@ -168,25 +172,37 @@ function PdfFrame({ src, name }: { src: string; name: string }) {
 				if (done) break;
 				chunks.push(value);
 				got += value.length;
-				if (total) setProgress(got / total);
+				if (total) setState({ src, progress: got / total });
 			}
-			url = URL.createObjectURL(new Blob(chunks, { type: "application/pdf" }));
-			setBlobUrl(url);
-		})().catch(e => !ctrl.signal.aborted && (console.error(e), setError(true)));
+			const blob = new Blob(chunks, { type: "application/pdf" });
+			if (!(await blob.slice(0, 1024).text()).includes("%PDF-")) throw new Error("Invalid PDF");
+			if (ctrl.signal.aborted) return;
+			url = URL.createObjectURL(blob);
+			setState({ src, blobUrl: url });
+		})().catch(() => !ctrl.signal.aborted && setState({ src, error: true }));
 		return () => {
 			ctrl.abort();
-			if (url) URL.revokeObjectURL(url);
+			if (url) {
+				const previous = url;
+				// A new tab or download may still be opening this URL.
+				setTimeout(() => URL.revokeObjectURL(previous), 10_000);
+			}
+			setState(undefined);
 		};
 	}, [src]);
 
+	return { blobUrl: current?.blobUrl, progress: current?.progress ?? 0, error: current?.error ?? false };
+}
+
+function PdfFrame({ blobUrl, progress, error, name, download }: ReturnType<typeof usePdf> & { name: string; download: string }) {
 	if (error)
 		return (
 			<div className="grid size-full place-items-center p-6 text-center text-sm text-base-content/65">
 				<p role="alert">
 					{tr(
 						"previewFailed",
-						<a className="link" href={src} target="_blank" rel="noreferrer">
-							{tr("openInNewTab")}
+						<a className="link" href={download} download={name} target="_blank" rel="noreferrer">
+							{tc("download")}
 							<span className="sr-only">{tc("openInNewTab")}</span>
 						</a>
 					)}
