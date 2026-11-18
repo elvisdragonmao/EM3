@@ -51,7 +51,7 @@ export function LoginPage() {
 		try {
 			await signIn(baseUrl, username, password, remember);
 			const target = next?.replace(/^#/, "");
-			await navigate({ to: target && target !== "/login" ? target : "/" });
+			await navigate({ to: target && target !== "/login" ? target : "/", replace: true });
 		} catch (err) {
 			if (err instanceof MoodleError && err.code === "invalidlogin") setError({ message: t("invalidLogin"), field: "credentials" });
 			else if (err instanceof MoodleUrlError || (err instanceof MoodleError && ["network", "notmoodle", "http"].includes(err.code))) setError({ message: err.message, field: "site" });

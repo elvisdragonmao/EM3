@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { useForums } from "@/features/announcements/api";
 import { FileIcon } from "@/features/course/FileIcon";
 import { useCourseIndex } from "@/features/courses/api";
@@ -12,7 +13,7 @@ import { CourseTag } from "@/shared/ui/CourseTag";
 import { ErrorNote, Lines } from "@/shared/ui/States";
 import { ArrowLeftIcon, CloudArrowUpIcon, EyeIcon, PushPinIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./messages";
 
@@ -20,7 +21,7 @@ const DRAFT_KEY = (id: string) => `em3:announce-draft:${id}`;
 
 export function AnnouncePage() {
 	const { courseId } = useParams({ from: "/app/courses/$courseId/announce" });
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "teach" } });
 	const navigate = useNavigate();
 	const qc = useQueryClient();
 	const { byId } = useCourseIndex();
@@ -82,7 +83,7 @@ export function AnnouncePage() {
 
 	return (
 		<div className="mx-auto max-w-3xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>

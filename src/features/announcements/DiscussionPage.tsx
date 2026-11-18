@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { FileIcon } from "@/features/course/FileIcon";
 import { openFile } from "@/features/course/FilePreview";
 import { useCourseIndex } from "@/features/courses/api";
@@ -10,7 +11,7 @@ import { CourseTag } from "@/shared/ui/CourseTag";
 import { ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago } from "@/shared/ui/Time";
 import { ArrowLeftIcon, ArrowSquareOutIcon } from "@phosphor-icons/react";
-import { Link, useParams, useRouter } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { cleanAuthor, type ForumPost, useDiscussion } from "./api";
 import { t } from "./messages";
@@ -21,7 +22,7 @@ export function DiscussionPage() {
 	const { byId } = useCourseIndex();
 	const course = byId.get(Number(courseId));
 	const markSeen = usePrefs(s => s.markSeen);
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "announcements" } });
 	useDocumentTitle(data?.posts[0]?.subject);
 
 	useEffect(() => {
@@ -34,7 +35,7 @@ export function DiscussionPage() {
 
 	return (
 		<article className="mx-auto max-w-3xl">
-			<button type="button" onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button type="button" onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>

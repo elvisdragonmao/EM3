@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { FileIcon } from "@/features/course/FileIcon";
 import { openFile } from "@/features/course/FilePreview";
 import { useCourseIndex } from "@/features/courses/api";
@@ -10,7 +11,7 @@ import { CourseTag } from "@/shared/ui/CourseTag";
 import { ErrorNote, Lines } from "@/shared/ui/States";
 import { Ago } from "@/shared/ui/Time";
 import { ArrowLeftIcon, ArrowSquareOutIcon, ChatTextIcon, ClockIcon, HourglassIcon, LockIcon, PaperclipIcon } from "@phosphor-icons/react";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { assignRules, submissionFiles, TASK_STATE_LABEL, taskState, useAssignments, useSubmissionStatus, withSkip } from "./api";
 import { t } from "./messages";
@@ -42,7 +43,7 @@ export function FileChips({ files }: { files: InlineFile[] }) {
 
 export function AssignmentPage() {
 	const { courseId, cmid } = useParams({ from: "/app/courses/$courseId/assign/$cmid" });
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "assignments" } });
 	const { byId } = useCourseIndex();
 	const course = byId.get(Number(courseId));
 	const ids = useMemo(() => [Number(courseId)], [courseId]);
@@ -70,7 +71,7 @@ export function AssignmentPage() {
 
 	return (
 		<div className="mx-auto max-w-5xl">
-			<button type="button" onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button type="button" onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>

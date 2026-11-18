@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { useAssignments } from "@/features/assignments/api";
 import { t as ta } from "@/features/assignments/messages";
 import { SkipToggle, useSkipped } from "@/features/assignments/SkipToggle";
@@ -35,7 +36,7 @@ import {
 	UsersThreeIcon
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -68,7 +69,7 @@ export function GradingPage() {
 	const { courseId, cmid } = useParams({ from: "/app/courses/$courseId/assign/$cmid/grade" });
 	const { student } = useSearch({ from: "/app/courses/$courseId/assign/$cmid/grade" });
 	const navigate = useNavigate();
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "teach" } });
 	const { byId } = useCourseIndex();
 	const course = byId.get(Number(courseId));
 	const ids = useMemo(() => [Number(courseId)], [courseId]);
@@ -150,7 +151,7 @@ export function GradingPage() {
 
 	return (
 		<div className="mx-auto max-w-7xl">
-			<button type="button" onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-3 -ml-2">
+			<button type="button" onClick={back} className="btn btn-ghost btn-sm mb-3 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>

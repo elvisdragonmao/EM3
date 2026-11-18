@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { useCourseIndex } from "@/features/courses/api";
 import { saveBlob } from "@/lib/download";
 import { cleanHtml, e3Link } from "@/lib/moodle/files";
@@ -6,7 +7,7 @@ import { markdownToHtml } from "@/shared/editor/markdown";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ClipboardTextIcon, DownloadSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { t } from "./messages";
@@ -26,7 +27,7 @@ function load(courseId: string): { category: string; questions: Question[] } {
 
 export function QuizBuilderPage() {
 	const { courseId } = useParams({ from: "/app/courses/$courseId/quiz-builder" });
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "teach" } });
 	const course = useCourseIndex().byId.get(Number(courseId));
 	const [state, setState] = useState(() => load(courseId));
 	const [pasting, setPasting] = useState(false);
@@ -60,7 +61,7 @@ export function QuizBuilderPage() {
 
 	return (
 		<div className="mx-auto max-w-6xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>

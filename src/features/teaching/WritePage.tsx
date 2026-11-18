@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { useCourseIndex } from "@/features/courses/api";
 import { tc } from "@/i18n/common";
 import { cleanHtml, e3Link } from "@/lib/moodle/files";
@@ -5,7 +6,7 @@ import { MarkdownEditor, markdownToHtml } from "@/shared/editor/MarkdownEditor";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { CourseTag } from "@/shared/ui/CourseTag";
 import { ArrowLeftIcon, ArrowSquareOutIcon, CheckIcon, CopyIcon } from "@phosphor-icons/react";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { t as m } from "./messages";
 
@@ -24,7 +25,7 @@ const KEY = (id: string) => `em3:write-draft:${id}`;
 
 export function WritePage() {
 	const { courseId } = useParams({ from: "/app/courses/$courseId/write" });
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "teach" } });
 	const course = useCourseIndex().byId.get(Number(courseId));
 	const [md, setMd] = useState(() => {
 		try {
@@ -61,7 +62,7 @@ export function WritePage() {
 
 	return (
 		<div className="mx-auto max-w-6xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{m("back")}
 			</button>

@@ -1,3 +1,4 @@
+import { useBack } from "@/shared/hooks/useBack";
 import { Fact, FileChips } from "@/features/assignments/AssignmentPage";
 import { useCourseIndex, useSiteInfo } from "@/features/courses/api";
 import { tc } from "@/i18n/common";
@@ -26,7 +27,7 @@ import {
 	XCircleIcon
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useRouter } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	attemptQuestions,
@@ -52,7 +53,7 @@ const STATE_TONE = { graded: "badge-success", submitted: "badge-success", todo: 
 
 export function QuizPage() {
 	const { courseId, cmid } = useParams({ from: "/app/courses/$courseId/quiz/$cmid" });
-	const router = useRouter();
+	const back = useBack({ to: "/courses/$courseId", params: { courseId }, search: { tab: "assignments" } });
 	const { byId } = useCourseIndex();
 	const course = byId.get(Number(courseId));
 	const ids = useMemo(() => [Number(courseId)], [courseId]);
@@ -86,7 +87,7 @@ export function QuizPage() {
 
 	return (
 		<div className="mx-auto max-w-5xl">
-			<button onClick={() => router.history.back()} className="btn btn-ghost btn-sm mb-4 -ml-2">
+			<button onClick={back} className="btn btn-ghost btn-sm mb-4 -ml-2">
 				<ArrowLeftIcon size={16} />
 				{t("back")}
 			</button>
