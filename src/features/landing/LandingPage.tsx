@@ -6,28 +6,14 @@ import { tc } from "@/i18n/common";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { MOD_LABEL } from "@/shared/keyboard/hotkeys";
 import { LanguageSelect } from "@/shared/ui/LanguagePicker";
+import { REPO, StarButton } from "@/shared/ui/StarButton";
 import { Logo } from "@/shared/ui/Logo";
-import { ArrowRightIcon, GithubLogoIcon, SparkleIcon, StarIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { ArrowRightIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Fragment, type ReactNode, useRef } from "react";
 import { t } from "./messages";
 import { t as tu } from "@/features/updates/messages";
-
-export const REPO = "https://github.com/elvisdragonmao/EM3";
-
-function useStars() {
-	return useQuery({
-		queryKey: ["github-stars"],
-		staleTime: 60 * 60_000,
-		queryFn: async () => {
-			const res = await fetch("https://api.github.com/repos/elvisdragonmao/EM3");
-			if (!res.ok) throw new Error(String(res.status));
-			return ((await res.json()) as { stargazers_count: number }).stargazers_count;
-		}
-	});
-}
 
 /** A product screenshot in both schemes; CSS shows the one matching the theme. */
 function Shot({ name, alt, eager = false, className = "" }: { name: string; alt: string; eager?: boolean; className?: string }) {
@@ -83,26 +69,6 @@ function Feature({ title, children, shot, flip = false }: { title: ReactNode; ch
 	);
 }
 
-function StarButton({ big = false }: { big?: boolean }) {
-	const { data: stars } = useStars();
-	return (
-		<a href={REPO} target="_blank" rel="noreferrer" className={`btn ${big ? "btn-lg" : ""} gap-2 border-base-content/15 bg-base-100`}>
-			<GithubLogoIcon size={big ? 20 : 18} weight="fill" />
-			{t("starOnGitHub")}
-			{typeof stars === "number" && (
-				<>
-					<span aria-hidden className="flex items-center gap-1 border-l border-base-content/15 pl-2 tabular-nums text-base-content/70">
-						<StarIcon size={14} weight="fill" className="text-warning" />
-						{stars}
-					</span>
-					<span className="sr-only">{t("starCount", stars)}</span>
-				</>
-			)}
-			<span className="sr-only">{tc("openInNewTab")}</span>
-		</a>
-	);
-}
-
 /** Shortcut keys, paired in order with the `keyLabels` messages. */
 const KEYS = [`${MOD_LABEL} K`, "1 – 8", "J  K", "[  ]", "U", `${MOD_LABEL} /`];
 
@@ -146,10 +112,10 @@ export function LandingPage() {
 			<div className="min-h-dvh overflow-x-clip bg-base-100 text-base-content">
 				<header className="surface sticky top-0 z-40 border-x-0 border-t-0">
 					<div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6">
-						{/* The logo names the link; the wordmark is hidden on the narrowest phones to make room. */}
+						{/* The logo names the link; the wordmark gives the navigation room on phones. */}
 						<Link to="/welcome" className="flex shrink-0 items-center gap-2.5">
 							<Logo size={32} />
-							<span aria-hidden className="hidden text-lg font-semibold tracking-tight min-[24rem]:inline">
+							<span aria-hidden className="hidden text-lg font-semibold tracking-tight min-[28rem]:inline">
 								EM3
 							</span>
 						</Link>
@@ -159,11 +125,7 @@ export function LandingPage() {
 								<SparkleIcon size={17} weight="fill" />
 								<span className="sr-only sm:not-sr-only">{tu("title")}</span>
 							</Link>
-							<a href={REPO} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm gap-1.5">
-								<GithubLogoIcon size={17} weight="fill" />
-								<span className="sr-only sm:not-sr-only">GitHub</span>
-								<span className="sr-only">{tc("openInNewTab")}</span>
-							</a>
+							<StarButton />
 							<Link to={signedIn ? "/" : "/login"} className="btn btn-neutral btn-sm">
 								{signedIn ? t("openEm3") : t("signIn")}
 							</Link>

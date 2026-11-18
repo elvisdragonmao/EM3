@@ -1,3 +1,4 @@
+import { StarButton } from "@/shared/ui/StarButton";
 import { type Announcement, cleanAuthor, postTime, useAnnouncements } from "@/features/announcements/api";
 import { useTimetable } from "@/features/timetable/schedule";
 import { TASK_STATE_LABEL } from "@/features/assignments/api";
@@ -85,7 +86,10 @@ function Greeting({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
 
 	return (
 		<section className="pt-2">
-			<p className="text-sm font-medium text-base-content/65">{t("today", now)}</p>
+			<div className="flex items-center justify-between gap-3">
+				<p className="text-sm font-medium text-base-content/65">{t("today", now)}</p>
+				<StarButton />
+			</div>
 			<h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">{t("greeting", now.getHours(), nickname || me?.firstname || "")}</h1>
 			<p className="mt-2 max-w-2xl text-base text-base-content/65">
 				{summary}

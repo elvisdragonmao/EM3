@@ -4,6 +4,8 @@ export const t = defineMessages({
 	"zh-TW": {
 		language: "語言",
 		system: "跟隨系統",
+		starOnGitHub: "在 GitHub 上給顆星",
+		starCount: (n: number) => `（目前 ${n} 顆星）`,
 		// CommandPalette
 		paletteLabel: "快速跳到課程或頁面",
 		paletteSearch: "搜尋課程或頁面",
@@ -19,6 +21,8 @@ export const t = defineMessages({
 	en: {
 		language: "Language",
 		system: "System default",
+		starOnGitHub: "Star on GitHub",
+		starCount: (n: number) => ` (${n} ${n === 1 ? "star" : "stars"})`,
 		paletteLabel: "Jump to a course or page",
 		paletteSearch: "Search courses or pages",
 		palettePlaceholder: "Search courses, pages… (Chinese, English or course code)",
@@ -32,6 +36,8 @@ export const t = defineMessages({
 	ja: {
 		language: "言語",
 		system: "システムに合わせる",
+		starOnGitHub: "GitHub でスターを付ける",
+		starCount: (n: number) => `（現在 ${n} スター）`,
 		paletteLabel: "コースやページへ移動",
 		paletteSearch: "コースやページを検索",
 		palettePlaceholder: "コース・ページを検索…（中国語・英語・科目コード可）",
@@ -45,6 +51,8 @@ export const t = defineMessages({
 	emoji: {
 		language: "🌐",
 		system: "🖥️",
+		starOnGitHub: "⭐🐙",
+		starCount: (n: number) => ` ⭐${n}`,
 		paletteLabel: "🚀📚📄",
 		paletteSearch: "🔍📚📄",
 		palettePlaceholder: "🔍 📚 📄 …",
