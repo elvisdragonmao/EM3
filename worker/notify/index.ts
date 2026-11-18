@@ -1,26 +1,26 @@
+import { DEFAULT_LEADS, MAX_LEADS, validLead } from "../../src/features/notify/leads";
 import { callAs, requireUser, type User } from "../auth";
 import { open, seal } from "../crypto";
 import type { Env } from "../env";
 import { HttpError, json, readJson, route, type Route } from "../http";
 import { type DiscordResult, type Embed, isDiscordWebhook, sendDiscord, webhookHint } from "./discord";
 import { messages } from "./messages";
-import { type ActionEvent, candidateKeys, planReminders, readSkips, type Reminder, reminderText, type ReminderText } from "./reminders";
+import { type ActionEvent, candidateKeys, planReminders, readSkips, type Reminder, reminderLeads, reminderText, type ReminderText } from "./reminders";
 import { isPushEndpoint, type PushResult, pushService, sendPush, type Vapid } from "./webpush";
 
 // Deadline and grading reminders over Web Push and Discord (DESIGN.md, 伺服器版).
 
-const DEFAULT_LEADS = [24, 3];
-const MAX_LEADS = 4;
 /** Users checked per cron run, and how many at once; the rest wait for the next run (oldest first). */
 const USERS_PER_RUN = 40;
 const CONCURRENCY = 6;
-/** Reminders per user per run; more stay unsent and go out 15 minutes later. */
+/** Reminders per user per run; more stay unsent and go out on the next check. */
 const SENDS_PER_USER = 5;
 const KEEP_SENT_MS = 30 * 86400_000;
 
 interface SettingsRow {
 	enabled: number;
 	lead_hours: string;
+	hourly_last_day: number;
 	deadlines: number;
 	grading: number;
 	discord_webhook: string | null;
@@ -40,7 +40,7 @@ const vapid = (env: Env): Vapid => ({ publicKey: env.VAPID_PUBLIC_KEY, privateKe
 function parseLeads(raw: string): number[] {
 	try {
 		const v = JSON.parse(raw) as unknown;
-		if (Array.isArray(v) && v.every(n => Number.isInteger(n) && n >= 1 && n <= 168)) return v as number[];
+		if (Array.isArray(v) && v.every(validLead)) return v as number[];
 	} catch {
 		// Fall through to the default.
 	}
@@ -48,8 +48,8 @@ function parseLeads(raw: string): number[] {
 }
 
 async function readSettings(env: Env, userId: number): Promise<SettingsRow> {
-	const row = await env.DB.prepare("SELECT enabled, lead_hours, deadlines, grading, discord_webhook FROM notify_settings WHERE user_id = ?").bind(userId).first<SettingsRow>();
-	return row ?? { enabled: 0, lead_hours: JSON.stringify(DEFAULT_LEADS), deadlines: 1, grading: 1, discord_webhook: null };
+	const row = await env.DB.prepare("SELECT enabled, lead_hours, hourly_last_day, deadlines, grading, discord_webhook FROM notify_settings WHERE user_id = ?").bind(userId).first<SettingsRow>();
+	return row ?? { enabled: 0, lead_hours: JSON.stringify(DEFAULT_LEADS), hourly_last_day: 0, deadlines: 1, grading: 1, discord_webhook: null };
 }
 
 async function settingsView(env: Env, userId: number) {
@@ -61,6 +61,7 @@ async function settingsView(env: Env, userId: number) {
 	return {
 		enabled: !!s.enabled,
 		leadHours: parseLeads(s.lead_hours),
+		hourlyLastDay: !!s.hourly_last_day,
 		deadlines: !!s.deadlines,
 		grading: !!s.grading,
 		discord: { set: !!s.discord_webhook, hint },
@@ -71,6 +72,7 @@ async function settingsView(env: Env, userId: number) {
 interface SettingsPatch {
 	enabled?: unknown;
 	leadHours?: unknown;
+	hourlyLastDay?: unknown;
 	deadlines?: unknown;
 	grading?: unknown;
 	discordWebhook?: unknown;
@@ -87,8 +89,8 @@ async function updateSettings(env: Env, userId: number, patch: SettingsPatch) {
 	let leads = cur.lead_hours;
 	if (patch.leadHours !== undefined) {
 		const v = patch.leadHours;
-		if (!Array.isArray(v) || !v.length || v.length > MAX_LEADS || !v.every(n => Number.isInteger(n) && n >= 1 && n <= 168) || new Set(v).size !== v.length)
-			throw new HttpError(400, `leadHours must be 1–${MAX_LEADS} different whole hours between 1 and 168`);
+		if (!Array.isArray(v) || v.length > MAX_LEADS || !v.every(validLead) || new Set(v).size !== v.length)
+			throw new HttpError(400, `leadHours must contain at most ${MAX_LEADS} distinct values (15 minutes, or 1–168 whole hours)`);
 		leads = JSON.stringify([...(v as number[])].sort((a, b) => b - a));
 	}
 	let webhook = cur.discord_webhook;
@@ -99,11 +101,20 @@ async function updateSettings(env: Env, userId: number, patch: SettingsPatch) {
 		webhook = await seal(env.TOKEN_KEY, url);
 	}
 	await env.DB.prepare(
-		`INSERT INTO notify_settings (user_id, enabled, lead_hours, deadlines, grading, discord_webhook, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT (user_id) DO UPDATE SET enabled = excluded.enabled, lead_hours = excluded.lead_hours, deadlines = excluded.deadlines,
+		`INSERT INTO notify_settings (user_id, enabled, lead_hours, hourly_last_day, deadlines, grading, discord_webhook, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (user_id) DO UPDATE SET enabled = excluded.enabled, lead_hours = excluded.lead_hours, hourly_last_day = excluded.hourly_last_day, deadlines = excluded.deadlines,
 		 grading = excluded.grading, discord_webhook = excluded.discord_webhook, updated_at = excluded.updated_at`
 	)
-		.bind(userId, bool(patch.enabled, "enabled", cur.enabled), leads, bool(patch.deadlines, "deadlines", cur.deadlines), bool(patch.grading, "grading", cur.grading), webhook, now())
+		.bind(
+			userId,
+			bool(patch.enabled, "enabled", cur.enabled),
+			leads,
+			bool(patch.hourlyLastDay, "hourlyLastDay", cur.hourly_last_day),
+			bool(patch.deadlines, "deadlines", cur.deadlines),
+			bool(patch.grading, "grading", cur.grading),
+			webhook,
+			now()
+		)
 		.run();
 }
 
@@ -151,7 +162,8 @@ function embedFor(r: Reminder, text: ReminderText, locale: string, nowSec: numbe
 interface DueUser extends User, SettingsRow {}
 
 async function remindUser(env: Env, user: DueUser) {
-	const leads = parseLeads(user.lead_hours);
+	const leads = reminderLeads(parseLeads(user.lead_hours), !!user.hourly_last_day);
+	if (!leads.length || (!user.deadlines && !user.grading)) return;
 	const nowSec = Math.floor(now() / 1000);
 	const data = await callAs<{ events: ActionEvent[] }>(env, user, "core_calendar_get_action_events_by_timesort", {
 		timesortfrom: nowSec,
@@ -224,21 +236,21 @@ async function pool<T>(items: T[], size: number, fn: (item: T) => Promise<void>)
 	);
 }
 
-/** Called by the cron every 15 minutes. */
+/** Called by the cron every five minutes. */
 export async function runReminders(env: Env) {
 	const t = now();
 	await env.DB.prepare("DELETE FROM sent_notifications WHERE sent_at < ?")
 		.bind(t - KEEP_SENT_MS)
 		.run();
-	// Only users with somewhere to send to; checked within the last 10 minutes means this run already saw them.
+	// Only users with somewhere to send to; checked within the last four minutes means this run already saw them.
 	const { results: users } = await env.DB.prepare(
-		`SELECT users.*, n.lead_hours, n.deadlines, n.grading, n.discord_webhook, n.enabled
+		`SELECT users.*, n.lead_hours, n.hourly_last_day, n.deadlines, n.grading, n.discord_webhook, n.enabled
 		 FROM notify_settings n JOIN users ON users.id = n.user_id
 		 WHERE n.enabled = 1 AND users.token_ok = 1 AND n.checked_at < ?
 		   AND (n.discord_webhook IS NOT NULL OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = n.user_id))
 		 ORDER BY n.checked_at LIMIT ?`
 	)
-		.bind(t - 10 * 60_000, USERS_PER_RUN)
+		.bind(t - 4 * 60_000, USERS_PER_RUN)
 		.all<DueUser>();
 	if (!users.length) return;
 	// Marked first, so a user whose check keeps failing doesn't hold the front of the queue.

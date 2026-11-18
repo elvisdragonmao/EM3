@@ -16,10 +16,8 @@ import {
 	useRefreshNotify,
 	useUpdateNotify
 } from "./api";
+import { LEAD_HOURS, MAX_LEADS } from "./leads";
 import { t } from "./messages";
-
-const LEADS = [1, 3, 6, 24, 72, 168];
-const MAX_LEADS = 4;
 
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -46,10 +44,11 @@ export function NotificationSettings() {
 				</div>
 				<LeadChips
 					settings={data}
+					onToggleHourly={() => save({ hourlyLastDay: !(update.current()?.hourlyLastDay ?? data.hourlyLastDay) })}
 					onToggle={h => {
 						const chosen = update.current()?.leadHours ?? data.leadHours;
 						const next = chosen.includes(h) ? chosen.filter(x => x !== h) : [...chosen, h];
-						if (next.length >= 1 && next.length <= MAX_LEADS) save({ leadHours: next });
+						if (next.length <= MAX_LEADS) save({ leadHours: next });
 					}}
 				/>
 				<label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
@@ -80,17 +79,25 @@ export function NotificationSettings() {
 	);
 }
 
-function LeadChips({ settings, onToggle }: { settings: NotifySettings; onToggle: (hours: number) => void }) {
+function LeadChips({ settings, onToggle, onToggleHourly }: { settings: NotifySettings; onToggle: (hours: number) => void; onToggleHourly: () => void }) {
 	const chosen = settings.leadHours;
 	// Keep any value saved elsewhere visible even if it isn't one of the presets.
-	const options = [...new Set([...LEADS, ...chosen])].sort((a, b) => a - b);
+	const options = [...new Set([...LEAD_HOURS, ...chosen])].sort((a, b) => a - b);
 	return (
 		<fieldset className="fieldset" aria-describedby="notify-lead-hint">
 			<legend className="fieldset-legend">{t("leadLegend")}</legend>
 			<div className="flex flex-wrap gap-2">
+				<button
+					type="button"
+					aria-pressed={settings.hourlyLastDay}
+					className={`btn btn-sm rounded-full ${settings.hourlyLastDay ? "btn-primary" : "btn-outline border-base-content/20"}`}
+					onClick={onToggleHourly}
+				>
+					{t("hourlyLastDay")}
+				</button>
 				{options.map(h => {
 					const on = chosen.includes(h);
-					const blocked = on ? chosen.length === 1 : chosen.length >= MAX_LEADS;
+					const blocked = !on && chosen.length >= MAX_LEADS;
 					return (
 						<button
 							key={h}
@@ -106,7 +113,7 @@ function LeadChips({ settings, onToggle }: { settings: NotifySettings; onToggle:
 				})}
 			</div>
 			<p id="notify-lead-hint" className="label">
-				{t("leadHint", MAX_LEADS)}
+				{t("leadHint")}
 			</p>
 		</fieldset>
 	);

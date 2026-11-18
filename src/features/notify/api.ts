@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export interface NotifySettings {
 	enabled: boolean;
 	leadHours: number[];
+	hourlyLastDay: boolean;
 	deadlines: boolean;
 	grading: boolean;
 	/** The webhook itself never comes back from the server; only a masked hint. */
@@ -18,6 +19,7 @@ export interface NotifySettings {
 export interface NotifyPatch {
 	enabled?: boolean;
 	leadHours?: number[];
+	hourlyLastDay?: boolean;
 	deadlines?: boolean;
 	grading?: boolean;
 	discordWebhook?: string | null;
@@ -48,6 +50,7 @@ export function useUpdateNotify() {
 	const key = useNotifyKey();
 	const mutation = useMutation({
 		mutationKey: key,
+		scope: { id: JSON.stringify(key) },
 		mutationFn: (patch: NotifyPatch) => api<NotifySettings>("notify", { method: "PUT", body: patch }),
 		// An older save finishing late mustn't undo a newer local change; the last one's answer wins.
 		onSuccess: data => void (qc.isMutating({ mutationKey: key }) <= 1 && qc.setQueryData(key, data)),

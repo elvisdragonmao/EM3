@@ -27,8 +27,14 @@ export interface Reminder {
 
 export interface NotifyPrefs {
 	leadHours: number[];
+	hourlyLastDay?: boolean;
 	deadlines: boolean;
 	grading: boolean;
+}
+
+/** Keep overlapping hourly and explicit leads on the same deduplication key. */
+export function reminderLeads(hours: number[], hourlyLastDay = false) {
+	return [...new Set(hourlyLastDay ? [...hours, ...Array.from({ length: 24 }, (_, i) => i + 1)] : hours)].sort((a, b) => a - b);
 }
 
 /** Assignments (by cmid) the user marked in EM3 as not needing a submission or grading. */
@@ -69,6 +75,7 @@ export function classify(e: ActionEvent): Reminder["kind"] | null {
 export function planReminders(events: ActionEvent[], prefs: NotifyPrefs, nowSec: number, sent: Set<string>, skips: Skips = NO_SKIPS): { send: Reminder[]; silent: string[] } {
 	const send: Reminder[] = [];
 	const silent: string[] = [];
+	const leads = reminderLeads(prefs.leadHours, prefs.hourlyLastDay);
 	for (const event of events) {
 		const kind = classify(event);
 		if (!kind || (kind === "deadline" && !prefs.deadlines) || (kind === "grading" && !prefs.grading)) continue;
@@ -76,7 +83,7 @@ export function planReminders(events: ActionEvent[], prefs: NotifyPrefs, nowSec:
 		if (cmid !== null && (kind === "deadline" ? skips.submit : skips.grading).has(cmid)) continue;
 		const left = event.timesort - nowSec;
 		if (left <= 0) continue;
-		const applies = prefs.leadHours.filter(h => left <= h * 3600).sort((a, b) => a - b);
+		const applies = leads.filter(h => left <= h * 3600);
 		if (!applies.length) continue;
 		const unsent = applies.filter(h => !sent.has(sentKey(event.id, event.timesort, h)));
 		if (!unsent.length) continue;

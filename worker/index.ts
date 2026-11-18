@@ -31,7 +31,7 @@ export default {
 		if (url.pathname.startsWith("/api/")) return handleApi(req, env, exec, url);
 		return env.ASSETS.fetch(req);
 	},
-	async scheduled(_event, env, exec) {
-		exec.waitUntil(Promise.allSettled([runReminders(env), runReleases(env)]).then(rs => rs.forEach(r => r.status === "rejected" && console.error(r.reason))));
+	async scheduled(event, env, exec) {
+		exec.waitUntil(event.cron === "*/5 * * * *" ? runReminders(env) : runReleases(env));
 	}
 } satisfies ExportedHandler<Env>;

@@ -12,7 +12,7 @@
 	},
 	"d1_databases": [{ "binding": "DB", "database_name": "em3", "database_id": "0a8408de-e98b-470d-bd87-0834df81a456", "migrations_dir": "migrations" }],
 	// Reminders and scheduled grade releases.
-	"triggers": { "crons": ["*/15 * * * *"] },
+	"triggers": { "crons": ["*/5 * * * *", "*/15 * * * *"] },
 	"observability": { "enabled": true },
 	"routes": [{ "pattern": "e3.emtech.cc", "custom_domain": true }],
 	"workers_dev": false,

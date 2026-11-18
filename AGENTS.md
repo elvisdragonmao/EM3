@@ -207,7 +207,7 @@ pnpm dev:server                            # wrangler dev on :8787
 pnpm dev                                   # Vite on :5173, proxies /api to :8787
 ```
 
-- Trigger the cron locally with `curl "localhost:8787/cdn-cgi/handler/scheduled?cron=*/15+*+*+*+*"` (`/__scheduled` is served the SPA because only `/api/*` runs the Worker first).
+- Trigger the reminder cron locally (use `*/15` for grade releases) with `curl "localhost:8787/cdn-cgi/handler/scheduled?cron=*/5+*+*+*+*"` (`/__scheduled` is served the SPA because only `/api/*` runs the Worker first).
 - Run a single `wrangler dev` per `.wrangler` state; two instances on the same local D1 fail with `SQLITE_BUSY`. Use `--port` and `--persist-to` for a second, isolated one.
 - `DEV_ORIGIN` (local only) lets the Vite proxy's `Origin` through and enables localhost mocks for push services and Discord. Never set it in production.
 - Get a server session for curl by posting the test account's token to `POST /api/session` (see `DESIGN.md`). Never print the token.

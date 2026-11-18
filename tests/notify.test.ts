@@ -160,3 +160,36 @@ test("isDiscordWebhook accepts only Discord's webhook URLs (and localhost in dev
 	assert.ok(isDiscordWebhook(`http://localhost:9999/api/webhooks/${id}/${token}`, true));
 	assert.equal(webhookHint(`https://discord.com/api/webhooks/${id}/${token}`), "discord.com/api/webhooks/…5678");
 });
+
+test("hourly last-day reminders overlap explicit leads without duplicating delivery", () => {
+	const event = due(1, 24);
+	const settings = { ...prefs, hourlyLastDay: true, leadHours: [0.25, 1, 3, 24, 72] };
+	const first = planReminders([event], settings, NOW, new Set()).send;
+	assert.deepEqual(
+		first.map(r => r.lead),
+		[24]
+	);
+	const sent = new Set(first.flatMap(r => r.keys));
+	assert.deepEqual(planReminders([event], settings, NOW + 5 * 60, sent).send, []);
+	for (let h = 23; h >= 1; h--) {
+		const run = planReminders([event], settings, NOW + (24 - h) * 3600, sent).send;
+		assert.deepEqual(
+			run.map(r => r.lead),
+			[h]
+		);
+		for (const key of run[0].keys) sent.add(key);
+	}
+	assert.deepEqual(planReminders([event], settings, NOW + 23 * 3600 + 44 * 60, sent).send, []);
+	assert.deepEqual(
+		planReminders([event], settings, NOW + 23 * 3600 + 45 * 60, sent).send.map(r => r.lead),
+		[0.25]
+	);
+});
+
+test("selecting hourly alone schedules reminders even without individual leads", () => {
+	const { send } = planReminders([due(1, 0.8)], { ...prefs, hourlyLastDay: true, leadHours: [] }, NOW, new Set());
+	assert.deepEqual(
+		send.map(r => r.lead),
+		[1]
+	);
+});
