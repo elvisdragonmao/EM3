@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { classMoment } from "../src/features/timetable/now.ts";
 import { formatSlots, overlaps, parseScheduleCode, periodByCode, schoolPeriods, slotBlocks } from "../src/features/timetable/periods.ts";
 import { setMoodleBaseUrl } from "../src/lib/moodle/client.ts";
 import { DEFAULT_MOODLE_URL } from "../src/lib/moodle/site.ts";
@@ -66,4 +67,17 @@ test("periods from another school are dropped instead of crashing", () => {
 	setMoodleBaseUrl("https://moodle.example.edu.tw");
 	assert.equal(schoolPeriods(), null);
 	assert.deepEqual(parseScheduleCode("週二 E,F").slots, []);
+});
+
+test("a class is upcoming until its start and ends at the scheduled minute", () => {
+	setMoodleBaseUrl(DEFAULT_MOODLE_URL);
+	const timetable = { 1: { slots: [{ day: 0, period: "3" }] }, 2: { slots: [{ day: 0, period: "4" }] } };
+	const at = (h: number, m: number) => classMoment(timetable, new Date(2026, 10, 16, h, m));
+	assert.equal(at(10, 9).now, undefined);
+	assert.equal(at(10, 9).next?.courseId, 1);
+	assert.equal(at(10, 9).minutes, 1);
+	assert.equal(at(10, 10).now?.courseId, 1);
+	assert.equal(at(10, 10).progress, 0);
+	assert.equal(at(11, 0).now, undefined);
+	assert.equal(at(11, 0).next?.courseId, 2);
 });

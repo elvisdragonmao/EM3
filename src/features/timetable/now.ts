@@ -1,4 +1,4 @@
-import type { TimetableEntry } from "@/features/preferences/store";
+import type { TimetableEntry } from "../preferences/store";
 import { useEffect, useState } from "react";
 import { dayIndex, periodByCode, periodEndMinutes, periodStartMinutes, slotBlocks } from "./periods";
 
@@ -18,9 +18,6 @@ export function blocksFor(timetable: Record<string, TimetableEntry>): ClassBlock
 	);
 }
 
-/** Lead time before class during which the course already counts as "now". */
-const LEAD = 15;
-
 export interface ClassMoment {
 	now?: ClassBlock;
 	next?: ClassBlock;
@@ -36,9 +33,9 @@ export function classMoment(timetable: Record<string, TimetableEntry>, at = new 
 	const today = blocksFor(timetable)
 		.filter(b => b.day === day)
 		.sort((a, b) => a.start - b.start);
-	const now = today.find(b => t >= b.start - LEAD && t < b.end);
-	const next = today.find(b => b.start - LEAD > t && b !== now);
-	if (now) return { now, next, minutes: now.end - t, progress: Math.max(0, Math.min(1, (t - now.start) / (now.end - now.start))) };
+	const now = today.find(b => t >= b.start && t < b.end);
+	const next = today.find(b => b.start > t);
+	if (now) return { now, next, minutes: now.end - t, progress: (t - now.start) / (now.end - now.start) };
 	return { next, minutes: next ? next.start - t : undefined };
 }
 
