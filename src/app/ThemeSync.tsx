@@ -4,7 +4,7 @@ import { useMedia } from "@/shared/hooks/useMedia";
 import { useEffect } from "react";
 
 /**
- * Mirrors the theme preference onto <html data-theme>. "system" defers to CSS.
+ * Mirrors the resolved theme onto <html data-theme>, including system changes.
  * Also sets data-scheme="light|dark" so assets (e.g. screenshots) can follow the theme,
  * and points <meta name="theme-color"> at the page background.
  */
@@ -14,9 +14,8 @@ export function ThemeSync() {
 	const prefersDark = useMedia("(prefers-color-scheme: dark)");
 	useEffect(() => {
 		const root = document.documentElement;
-		if (theme === "system") root.removeAttribute("data-theme");
-		else root.setAttribute("data-theme", theme);
 		const dark = theme === "system" ? prefersDark : (ALL_THEMES.find(t => t.name === theme)?.dark ?? false);
+		root.dataset.theme = theme === "system" ? (dark ? "em3-dark" : "em3") : theme;
 		root.dataset.scheme = dark ? "dark" : "light";
 		// The installed app's title/status bar follows the page background.
 		const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');

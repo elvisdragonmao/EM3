@@ -234,6 +234,7 @@
 .input:focus-within,
 .textarea:focus,
 .select:focus,
+.select:focus-within,
 .em3-editor:focus-within {
 	outline: none;
 	border-color: color-mix(in oklab, var(--color-primary) 55%, transparent);
@@ -246,6 +247,10 @@
 .select:not(.select-ghost),
 .textarea:not(.textarea-ghost) {
 	--input-color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+/* Native picker popovers need a visible border on the resolved theme too. */
+:is(.select, .select select)::picker(select) {
+	border-color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
 }
 .checkbox,
 .radio,
@@ -262,6 +267,7 @@
 .input:focus-within,
 .textarea:focus,
 .select:focus,
+.select:focus-within,
 .em3-editor:focus-within {
 	border-color: var(--color-primary);
 }

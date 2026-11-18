@@ -33,9 +33,9 @@
 				var s = JSON.parse(localStorage.getItem("em3:prefs") || "{}");
 				var t = (s && s.state && s.state.theme) || "system";
 				var darkThemes = "em3-dark dark synthwave halloween forest aqua black luxury dracula business night coffee dim sunset abyss".split(" ");
-				if (t !== "system") document.documentElement.setAttribute("data-theme", t);
 				var dark = t === "system" ? matchMedia("(prefers-color-scheme: dark)").matches : darkThemes.indexOf(t) >= 0;
-				document.documentElement.setAttribute("data-scheme", dark ? "dark" : "light");
+				document.documentElement.dataset.theme = t === "system" ? (dark ? "em3-dark" : "em3") : t;
+				document.documentElement.dataset.scheme = dark ? "dark" : "light";
 			} catch (e) {}
 		</script>
 	</head>
